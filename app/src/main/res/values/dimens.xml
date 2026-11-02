@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Espaciados estándar (Regla de múltiplos de 4dp / 8dp de Material Design) -->
+    <dimen name="spacing_tiny">4dp</dimen>
+    <dimen name="spacing_small">8dp</dimen>
+    <dimen name="spacing_medium">12dp</dimen>
+    <dimen name="spacing_regular">16dp</dimen>
+    <dimen name="spacing_large">20dp</dimen>
+    <dimen name="spacing_xlarge">24dp</dimen>
+    <dimen name="spacing_xxlarge">32dp</dimen>
+    <dimen name="spacing_header_padding">40dp</dimen>
+
+    <!-- Radios de Esquinas (Border Radius) para consistencia de Cards y Botones -->
+    <dimen name="corner_radius_small">8dp</dimen>
+    <dimen name="corner_radius_medium">12dp</dimen>
+    <dimen name="corner_radius_large">16dp</dimen>
+    <dimen name="corner_radius_card">20dp</dimen>
+    <dimen name="corner_radius_pill">50dp</dimen>
+
+    <!-- Elevaciones de Material Cards -->
+    <dimen name="elevation_none">0dp</dimen>
+    <dimen name="elevation_card_low">2dp</dimen>
+    <dimen name="elevation_card_regular">4dp</dimen>
+    <dimen name="elevation_topbar">6dp</dimen>
+
+    <!-- Tamaños de Fuentes Jerárquicos (en sp para accesibilidad) -->
+    <dimen name="text_size_micro">11sp</dimen>
+    <dimen name="text_size_caption">12sp</dimen>
+    <dimen name="text_size_body">14sp</dimen>
+    <dimen name="text_size_subtitle">16sp</dimen>
+    <dimen name="text_size_title">18sp</dimen>
+    <dimen name="text_size_header">22sp</dimen>
+    <dimen name="text_size_display">26sp</dimen>
+</resources>

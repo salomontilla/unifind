@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recuadro con línea discontinua (dashed) para agregar fotos -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@color/bg_screen" />
+    <corners android:radius="@dimen/corner_radius_medium" />
+    <stroke
+        android:width="2dp"
+        android:color="@color/brand_blue_primary"
+        android:dashWidth="6dp"
+        android:dashGap="4dp" />
+</shape>

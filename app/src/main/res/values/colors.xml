@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ======================================================== -->
+    <!-- PALETA INSTITUCIONAL UNIAUTÓNOMA & UNIFIND              -->
+    <!-- Documentado para fácil sustentación técnica             -->
+    <!-- ======================================================== -->
+
+    <!-- Colores Principales de Marca -->
+    <!-- Navy oscuro: Fondo de cabeceras institucionales (Login, Topbars) -->
+    <color name="brand_navy_dark">#1B223C</color>
+    <color name="brand_navy_card">#232C4B</color>
+
+    <!-- Azul Institucional: Botones de acción principal (CTA), enlaces y selecciones activas -->
+    <color name="brand_blue_primary">#005E9E</color>
+    <color name="brand_blue_dark">#004B7D</color>
+    <color name="brand_blue_light">#EBF3FA</color>
+    <color name="brand_blue_border">#B9D7F2</color>
+
+    <!-- Amarillo Institucional: Escudo Uniautónoma, badges 'Encontrado' y calificaciones -->
+    <color name="brand_yellow_gold">#FDB813</color>
+    <color name="brand_yellow_light">#FFF9E6</color>
+    <color name="brand_yellow_border">#FFE082</color>
+
+    <!-- Verde de Seguridad / Éxito: Verificación, 'Devuelto con éxito', badges de confianza -->
+    <color name="brand_green_success">#00A86B</color>
+    <color name="brand_green_light">#E6F7F0</color>
+    <color name="brand_green_border">#A3E8CC</color>
+
+    <!-- Superficies y Fondos -->
+    <color name="bg_screen">#F6F8FA</color>
+    <color name="bg_surface_white">#FFFFFF</color>
+    <color name="bg_input">#FFFFFF</color>
+    <color name="bg_input_focused">#F8FBFF</color>
+    <color name="bg_chat_incoming">#F1F5F9</color>
+    <color name="bg_chat_outgoing">#005E9E</color>
+
+    <!-- Tipografía y Estados de Texto -->
+    <color name="text_title">#1E293B</color>
+    <color name="text_body">#475569</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="text_muted">#94A3B8</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_link">#005E9E</color>
+
+    <!-- Bordes y Separadores -->
+    <color name="stroke_divider">#E2E8F0</color>
+    <color name="stroke_card">#E9EEF4</color>
+    <color name="stroke_input">#CBD5E1</color>
+    <color name="stroke_input_active">#005E9E</color>
+
+    <!-- Colores Utilitarios de Soporte -->
+    <color name="white">#FFFFFFFF</color>
+    <color name="black">#FF000000</color>
+    <color name="transparent">#00000000</color>
+    <color name="chip_selected_bg">#005E9E</color>
+    <color name="chip_unselected_bg">#F1F5F9</color>
+    <color name="chip_unselected_text">#475569</color>
+    <color name="badge_lost_bg">#005E9E</color>
+    <color name="danger_red">#DC2626</color>
+    <color name="danger_light">#FEF2F2</color>
+</resources>

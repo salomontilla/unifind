@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_objects"
+        android:icon="@drawable/ic_objects"
+        android:title="@string/nav_objects" />
+
+    <item
+        android:id="@+id/nav_report"
+        android:icon="@drawable/ic_add"
+        android:title="@string/nav_report" />
+
+    <item
+        android:id="@+id/nav_messages"
+        android:icon="@drawable/ic_chat"
+        android:title="@string/nav_messages" />
+
+    <item
+        android:id="@+id/nav_honor"
+        android:icon="@drawable/ic_trophy"
+        android:title="@string/nav_honor" />
+
+    <item
+        android:id="@+id/nav_admin"
+        android:icon="@drawable/ic_admin"
+        android:title="@string/nav_admin" />
+</menu>

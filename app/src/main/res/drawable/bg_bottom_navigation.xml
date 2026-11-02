@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo blanco con línea divisoria superior sutil para la barra de navegación -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Línea divisoria superior -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/stroke_divider" />
+        </shape>
+    </item>
+    <!-- Fondo blanco con margen superior de 1dp para dejar visible la línea -->
+    <item android:top="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/bg_surface_white" />
+        </shape>
+    </item>
+</layer-list>
