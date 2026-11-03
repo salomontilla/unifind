@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Carpeta privada de preparación y repaso para sustentación (no visible en GitHub)
+/sustentacion_privada/
