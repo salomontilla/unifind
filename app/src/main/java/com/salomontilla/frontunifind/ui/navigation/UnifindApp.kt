@@ -18,24 +18,18 @@ import com.salomontilla.frontunifind.ui.screens.FeedScreen
 import com.salomontilla.frontunifind.ui.screens.HonorScreen
 import com.salomontilla.frontunifind.ui.screens.LoginScreen
 import com.salomontilla.frontunifind.ui.screens.MessagesScreen
+import com.salomontilla.frontunifind.ui.screens.ProfileScreen
 import com.salomontilla.frontunifind.ui.screens.RatingModal
 import com.salomontilla.frontunifind.ui.screens.ReportScreen
 
 /**
  * =============================================================================
  * UnifindApp: Orquestador Principal de Navegación y Vistas en Jetpack Compose
- *
- * Características para Sustentación:
- * 1. Single Activity Architecture: Toda la aplicación corre sobre un único
- *    contenedor reactivo gobernado por estados de navegación.
- * 2. Backstack Reactivo: Soporte automático del botón Atrás del sistema operativo.
- * 3. ModalBottomSheet: Despliegue contextual del modal de valoración (Pantalla 7).
  * =============================================================================
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnifindApp() {
-    // Pila de navegación (Backstack) reactiva iniciando en Login Institucional
     val backStack = remember { mutableStateListOf<Screen>(Screen.Login) }
     val currentScreen = backStack.lastOrNull() ?: Screen.Login
 
@@ -51,7 +45,6 @@ fun UnifindApp() {
         }
     }
 
-    // Manejador del botón 'Atrás' físico o por gestos de Android
     BackHandler(enabled = backStack.size > 1) {
         navigateBack()
     }
@@ -65,7 +58,7 @@ fun UnifindApp() {
                         onNavigateToReport = { navigateTo(Screen.Report) },
                         onNavigateToMessages = { navigateTo(Screen.Messages) },
                         onNavigateToHonor = { navigateTo(Screen.Honor) },
-                        onNavigateToLogin = { navigateTo(Screen.Login) },
+                        onNavigateToLogin = { navigateTo(Screen.Profile) },
                         onShowHonorModal = { showRatingModal = true }
                     )
                 }
@@ -94,7 +87,7 @@ fun UnifindApp() {
                         onNavigateToHonor = { navigateTo(Screen.Honor) },
                         onNavigateToChat = { chatId -> navigateTo(Screen.Chat(chatId)) },
                         onShowHonorModal = { showRatingModal = true },
-                        onNavigateToLogin = { navigateTo(Screen.Login) }
+                        onNavigateToLogin = { navigateTo(Screen.Profile) }
                     )
                 }
 
@@ -110,7 +103,31 @@ fun UnifindApp() {
                             backStack.add(Screen.Messages)
                         },
                         onNavigateToReport = { navigateTo(Screen.Report) },
-                        onNavigateToLogin = { navigateTo(Screen.Login) }
+                        onNavigateToLogin = { navigateTo(Screen.Profile) }
+                    )
+                }
+
+                is Screen.Profile -> {
+                    ProfileScreen(
+                        onNavigateToFeed = {
+                            backStack.clear()
+                            backStack.add(Screen.Feed)
+                        },
+                        onNavigateToMessages = {
+                            backStack.clear()
+                            backStack.add(Screen.Feed)
+                            backStack.add(Screen.Messages)
+                        },
+                        onNavigateToHonor = {
+                            backStack.clear()
+                            backStack.add(Screen.Feed)
+                            backStack.add(Screen.Honor)
+                        },
+                        onNavigateToReport = { navigateTo(Screen.Report) },
+                        onLogout = {
+                            backStack.clear()
+                            backStack.add(Screen.Login)
+                        }
                     )
                 }
 
@@ -133,7 +150,6 @@ fun UnifindApp() {
             }
         }
 
-        // Modal de Valoración y Confirmación (Pantalla 7)
         if (showRatingModal) {
             RatingModal(
                 onDismiss = { showRatingModal = false }

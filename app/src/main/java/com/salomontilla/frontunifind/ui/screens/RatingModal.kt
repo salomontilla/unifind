@@ -24,8 +24,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,8 +42,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +55,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.theme.BlueLight
+import kotlinx.coroutines.launch
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenSuccess
@@ -77,8 +84,12 @@ fun RatingModal(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var rating by remember { mutableIntStateOf(5) }
     var comment by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+    val selectedBadges = remember { mutableStateListOf("Honestidad ejemplar", "Entrega puntual") }
+    val availableBadges = listOf("Honestidad ejemplar", "Entrega puntual", "Buena comunicación")
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -252,6 +263,41 @@ fun RatingModal(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                availableBadges.forEach { badge ->
+                    val isSelected = selectedBadges.contains(badge)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(if (isSelected) BlueLight else SurfaceWhite)
+                            .border(
+                                1.dp,
+                                if (isSelected) UniautonomaBlue else DividerStroke,
+                                RoundedCornerShape(50.dp)
+                            )
+                            .clickable {
+                                if (isSelected) selectedBadges.remove(badge) else selectedBadges.add(badge)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isSelected) "✓ $badge" else badge,
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) UniautonomaBlue else UniautonomaTextSecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             OutlinedTextField(
                 value = comment,
                 onValueChange = { comment = it },
@@ -270,12 +316,26 @@ fun RatingModal(
 
             Button(
                 onClick = {
-                    Toast.makeText(
-                        context,
-                        "¡Valoración guardada! +100 Puntos de Honor acreditados.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    onDismiss()
+                    if (isSaving) return@Button
+                    isSaving = true
+                    scope.launch {
+                        val res = UniFindRepository.rateUser(
+                            userId = UniFindRepository.currentUser.id.ifBlank { "2023-1001" },
+                            rating = rating,
+                            comment = comment.trim().takeIf { it.isNotEmpty() },
+                            badges = selectedBadges.toList()
+                        )
+                        isSaving = false
+                        val rateResp = res.getOrNull()
+                        val pts = rateResp?.pointsAdded ?: 100
+                        val total = rateResp?.honorPoints ?: 300
+                        Toast.makeText(
+                            context,
+                            "¡Valoración guardada! +$pts Pts de Honor (Total: $total Pts)",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        onDismiss()
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -286,14 +346,29 @@ fun RatingModal(
                     contentColor = SurfaceWhite
                 )
             ) {
-                Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Finalizar y Acreditar Honor",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        color = SurfaceWhite,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Guardando valoración...",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Guardar Valoración (+100 Pts de Honor)",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

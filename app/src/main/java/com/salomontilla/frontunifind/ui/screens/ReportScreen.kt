@@ -29,9 +29,15 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +66,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.salomontilla.frontunifind.R
+import com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest
+import com.salomontilla.frontunifind.data.model.CreateLostDetailedRequest
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.theme.BlueLight
+import kotlinx.coroutines.launch
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenLight
@@ -110,6 +121,8 @@ fun ReportScreen(
     var lostLocationRef by remember { mutableStateOf("Cubículos individuales Piso 2") }
 
     var hasError by remember { mutableStateOf(false) }
+    var isPublishing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     val quickItemSuggestions = listOf(
         "Llaves" to "Manojo de llaves con llavero",
@@ -195,7 +208,7 @@ fun ReportScreen(
                 .padding(18.dp)
         ) {
             // =================================================================
-            // SELECTOR DE MODO (Encontré / Portería vs Perdí un Objeto)
+            // SELECTOR DE MODO REDISEÑADO (Segmented Control Institucional)
             // =================================================================
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -206,60 +219,100 @@ fun ReportScreen(
                 border = BorderStroke(1.dp, CardStroke)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
+                    Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        shape = RoundedCornerShape(16.dp),
+                        color = UniautonomaBgLight,
+                        tonalElevation = 0.dp,
+                        border = BorderStroke(1.dp, CardStroke)
                     ) {
-                        Button(
-                            onClick = {
-                                isFound = true
-                                hasError = false
-                            },
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFound) UniautonomaBlue else UniautonomaBgLight,
-                                contentColor = if (isFound) SurfaceWhite else UniautonomaTextSecondary
-                            )
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (isFound) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
+                            // Pestaña 1: Encontré un objeto
+                            Surface(
+                                onClick = {
+                                    isFound = true
+                                    hasError = false
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isFound) UniautonomaBlue else SurfaceWhite,
+                                contentColor = if (isFound) SurfaceWhite else UniautonomaTextPrimary,
+                                tonalElevation = 0.dp,
+                                shadowElevation = if (isFound) 3.dp else 1.dp,
+                                border = if (isFound) null else BorderStroke(1.dp, DividerStroke)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Inventory2,
+                                        contentDescription = null,
+                                        tint = if (isFound) UniautonomaOrange else UniautonomaBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Encontré un objeto",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isFound) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (isFound) SurfaceWhite else UniautonomaTextPrimary,
+                                        maxLines = 1
+                                    )
+                                }
                             }
-                            Text(
-                                text = "Encontré / Portería",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
 
-                        Button(
-                            onClick = {
-                                isFound = false
-                                hasError = false
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!isFound) UniautonomaBlue else UniautonomaBgLight,
-                                contentColor = if (!isFound) SurfaceWhite else UniautonomaTextSecondary
-                            )
-                        ) {
-                            if (!isFound) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
+                            // Pestaña 2: Perdí un objeto
+                            Surface(
+                                onClick = {
+                                    isFound = false
+                                    hasError = false
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (!isFound) UniautonomaBlue else SurfaceWhite,
+                                contentColor = if (!isFound) SurfaceWhite else UniautonomaTextPrimary,
+                                tonalElevation = 0.dp,
+                                shadowElevation = if (!isFound) 3.dp else 1.dp,
+                                border = if (!isFound) null else BorderStroke(1.dp, DividerStroke)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = if (!isFound) UniautonomaOrange else UniautonomaBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Perdí un objeto",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (!isFound) FontWeight.Bold else FontWeight.SemiBold,
+                                        color = if (!isFound) SurfaceWhite else UniautonomaTextPrimary,
+                                        maxLines = 1
+                                    )
+                                }
                             }
-                            Text(
-                                text = "Perdí un Objeto",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     }
 
@@ -267,9 +320,9 @@ fun ReportScreen(
 
                     Text(
                         text = if (isFound) {
-                            "⚡ Sube una foto, elige qué objeto es y dónde quedó guardado. El dueño dará los detalles para reclamarlo."
+                            "Registra el hallazgo en Portería o custodia personal para devolverlo a su dueño."
                         } else {
-                            "🔍 Detalla las señas particulares de tu objeto para recibir alerta inmediata si llega a Portería."
+                            "Detalla las señas particulares de tu objeto para recibir aviso inmediato si aparece."
                         },
                         fontFamily = MuseoSansRounded,
                         fontSize = 12.sp,
@@ -324,14 +377,25 @@ fun ReportScreen(
                                 ) {
                                     Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = UniautonomaOrange)
                                 }
-                                Text(
-                                    text = "📷 Lista",
-                                    fontFamily = MuseoSansRounded,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = SurfaceWhite,
-                                    modifier = Modifier.align(Alignment.BottomStart)
-                                )
+                                Row(
+                                    modifier = Modifier.align(Alignment.BottomStart),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = GreenSuccess,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Lista",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SurfaceWhite
+                                    )
+                                }
                             }
 
                             Column(
@@ -465,8 +529,15 @@ fun ReportScreen(
                                 onClick = { custodyOption = 0 },
                                 colors = RadioButtonDefaults.colors(selectedColor = UniautonomaOrange)
                             )
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = UniautonomaOrange,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "🏛 Está en Portería / Vigilancia",
+                                text = "Está en Portería / Vigilancia",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -496,8 +567,15 @@ fun ReportScreen(
                                 onClick = { custodyOption = 1 },
                                 colors = RadioButtonDefaults.colors(selectedColor = UniautonomaBlue)
                             )
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = UniautonomaBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "🤝 Lo tengo yo (Coordinar entrega por chat)",
+                                text = "Lo tengo yo (Coordinar entrega por chat)",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
@@ -568,21 +646,32 @@ fun ReportScreen(
                     border = BorderStroke(1.dp, CardStroke)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = if (showExtraFields) {
-                                "➖ Ocultar pregunta clave o detalles opcionales"
-                            } else {
-                                "➕ Agregar pregunta clave o detalles (Opcional)"
-                            },
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = UniautonomaBlue,
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { showExtraFields = !showExtraFields }
-                                .padding(vertical = 4.dp)
-                        )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = null,
+                                tint = UniautonomaBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (showExtraFields) {
+                                    "Ocultar pregunta clave o detalles opcionales"
+                                } else {
+                                    "Agregar pregunta clave o detalles (Opcional)"
+                                },
+                                fontFamily = MuseoSansRounded,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = UniautonomaBlue
+                            )
+                        }
 
                         if (showExtraFields) {
                             Spacer(modifier = Modifier.height(10.dp))
@@ -818,21 +907,72 @@ fun ReportScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Botón Único Principal (54.dp en #0756A5)
+            // Botón Único Principal (54.dp en #0756A5) conectado a POST /items
             Button(
                 onClick = {
+                    if (isPublishing) return@Button
                     val activeTitle = if (isFound) title else lostTitle
                     if (activeTitle.trim().isEmpty()) {
                         hasError = true
                         Toast.makeText(context, "Por favor indica qué objeto es", Toast.LENGTH_SHORT).show()
                     } else {
-                        val successMsg = if (isFound) {
-                            "¡Hallazgo registrado exitosamente en Unifind!"
-                        } else {
-                            "¡Reporte de pérdida publicado! Te avisaremos si llega a Portería."
+                        hasError = false
+                        isPublishing = true
+                        scope.launch {
+                            if (isFound) {
+                                val categoryMapped = when (selectedQuickType) {
+                                    "Carné / Doc" -> "Documentos / Carnés"
+                                    "Llaves" -> "Llaves"
+                                    "Termo / Ropa" -> "Ropa y Accesorios"
+                                    else -> "Electrónica"
+                                }
+                                val res = UniFindRepository.createFoundExpress(
+                                    CreateFoundExpressRequest(
+                                        title = title.trim(),
+                                        type = "found",
+                                        category = categoryMapped,
+                                        custodyType = if (custodyOption == 0) "PORTERIA" else "PERSONAL",
+                                        campusZone = selectedFoundZone,
+                                        locationReference = room.trim().takeIf { it.isNotEmpty() },
+                                        brandAndColor = listOf(brand.trim(), model.trim())
+                                            .filter { it.isNotEmpty() }
+                                            .joinToString(" ")
+                                            .takeIf { it.isNotEmpty() },
+                                        photoUrl = "https://images.unsplash.com/photo-1587145820266-a5951ee6f620"
+                                    )
+                                )
+                                isPublishing = false
+                                val createdCode = res.getOrNull()?.code ?: "UAC-NUEVO"
+                                Toast.makeText(
+                                    context,
+                                    "¡Hallazgo #$createdCode publicado exitosamente en UniFind!",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                onBack()
+                            } else {
+                                val res = UniFindRepository.createLostDetailed(
+                                    CreateLostDetailedRequest(
+                                        title = lostTitle.trim(),
+                                        type = "lost",
+                                        category = "Documentos / Carnés",
+                                        distinguishingMarks = lostDistinguishingMarks.trim()
+                                            .ifEmpty { "Reportado por el titular en UniFind" },
+                                        brandAndColor = lostBrandColor.trim().takeIf { it.isNotEmpty() },
+                                        campusZone = selectedLostZone,
+                                        locationReference = lostLocationRef.trim().takeIf { it.isNotEmpty() },
+                                        photoUrl = null
+                                    )
+                                )
+                                isPublishing = false
+                                val createdCode = res.getOrNull()?.code ?: "UAC-PERDIDO"
+                                Toast.makeText(
+                                    context,
+                                    "¡Reporte #$createdCode publicado! Te avisaremos si llega a Portería.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                onBack()
+                            }
                         }
-                        Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
-                        onBack()
                     }
                 },
                 modifier = Modifier
@@ -844,14 +984,29 @@ fun ReportScreen(
                     contentColor = SurfaceWhite
                 )
             ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isFound) "Publicar Hallazgo Rápido" else "Publicar Reporte de Pérdida",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isPublishing) {
+                    CircularProgressIndicator(
+                        color = SurfaceWhite,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Publicando en UniFind API...",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isFound) "Publicar Hallazgo Rápido" else "Publicar Reporte de Pérdida",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

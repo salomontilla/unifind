@@ -74,6 +74,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.salomontilla.frontunifind.R
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenLight
@@ -104,8 +105,8 @@ fun LoginScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    var email by remember { mutableStateOf("usuario@uniautonoma.edu.co") }
-    var studentId by remember { mutableStateOf("202410293") }
+    var email by remember { mutableStateOf("carlos.munoz@uniautonoma.edu.co") }
+    var studentId by remember { mutableStateOf("2023-1001") }
     var rememberMe by remember { mutableStateOf(true) }
 
     var emailFocused by remember { mutableStateOf(false) }
@@ -118,15 +119,16 @@ fun LoginScreen(
     val isEmailValid = normalizedEmail.endsWith("@uniautonoma.edu.co") &&
         normalizedEmail.length > "@uniautonoma.edu.co".length &&
         !normalizedEmail.contains(" ")
-    val isStudentIdValid = studentId.trim().length >= 6 && studentId.trim().all { it.isDigit() }
+    val isStudentIdValid = studentId.trim().length >= 6 && studentId.trim().all { it.isDigit() || it == '-' }
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            delay(650)
+            val result = UniFindRepository.login(normalizedEmail, studentId.trim())
             isLoading = false
+            val user = result.getOrNull()
             Toast.makeText(
                 context,
-                "Bienvenido a Unifind • Comunidad Uniautónoma",
+                "Bienvenido ${user?.name ?: "Estudiante"} • Comunidad Uniautónoma",
                 Toast.LENGTH_SHORT
             ).show()
             onLoginSuccess()
@@ -517,7 +519,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = studentId,
                             onValueChange = { input ->
-                                studentId = input.filter { it.isDigit() }
+                                studentId = input.filter { it.isDigit() || it == '-' }
                                 if (studentIdError != null) studentIdError = null
                             },
                             placeholder = {

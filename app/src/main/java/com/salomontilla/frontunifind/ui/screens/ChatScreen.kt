@@ -39,10 +39,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,8 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.salomontilla.frontunifind.data.model.ChatMessage
-import com.salomontilla.frontunifind.ui.theme.CardStroke
+import com.salomontilla.frontunifind.data.model.ChatMessageDto
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenLight
 import com.salomontilla.frontunifind.ui.theme.GreenSuccess
@@ -66,10 +68,11 @@ import com.salomontilla.frontunifind.ui.theme.UniautonomaNavy
 import com.salomontilla.frontunifind.ui.theme.UniautonomaOrange
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextPrimary
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextSecondary
+import kotlinx.coroutines.launch
 
 /**
  * =============================================================================
- * PANTALLA 6: ChatScreen (Chat Privado y Coordinación de Entrega Simplificada)
+ * PANTALLA 6: ChatScreen (Chat Privado conectado a GET/POST /chats/{id}/messages)
  * Identidad Visual Oficial Uniautónoma del Cauca | Museo Sans Rounded
  * =============================================================================
  */
@@ -80,40 +83,17 @@ fun ChatScreen(
     onConfirmDelivery: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
+    var isUpdatingStatus by remember { mutableStateOf(false) }
 
-    val messages = remember {
-        mutableStateListOf(
-            ChatMessage(
-                "1",
-                "EU",
-                "¡Hola! Muchísimas gracias por reportarla. La calculadora tiene una calcomanía del logo de ingeniería en la tapa protectora.",
-                "2:16 PM",
-                isMine = false,
-                isVerified = true
-            ),
-            ChatMessage(
-                "2",
-                "Tú",
-                "Hola compañero, sí, confirmo que tiene esa calcomanía. La encontré en el mesón del laboratorio 201.",
-                "2:19 PM",
-                isMine = true
-            ),
-            ChatMessage(
-                "3",
-                "EU",
-                "¡Qué alivio! ¿Te queda bien vernos a las 3:00 PM frente a la cafetería del Bloque A?",
-                "2:21 PM",
-                isMine = false
-            ),
-            ChatMessage(
-                "4",
-                "Tú",
-                "Perfecto, nos vemos allá a las 3:00 PM en el Punto Seguro de Bienestar.",
-                "2:23 PM",
-                isMine = true
-            )
-        )
+    val messages = remember { mutableStateListOf<ChatMessageDto>() }
+
+    LaunchedEffect(chatId) {
+        val res = UniFindRepository.getChatMessages(chatId)
+        val loaded = res.getOrDefault(emptyList())
+        messages.clear()
+        messages.addAll(loaded)
     }
 
     Scaffold(
@@ -227,10 +207,18 @@ fun ChatScreen(
                         }
 
                         Button(
-                            onClick = onConfirmDelivery,
+                            onClick = {
+                                if (isUpdatingStatus) return@Button
+                                isUpdatingStatus = true
+                                scope.launch {
+                                    UniFindRepository.updateItemStatus("UAC-8841", "returned")
+                                    isUpdatingStatus = false
+                                    onConfirmDelivery()
+                                }
+                            },
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = GreenSuccess,
+                                containerColor = UniautonomaOrange,
                                 contentColor = SurfaceWhite
                             ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -296,17 +284,15 @@ fun ChatScreen(
 
                 IconButton(
                     onClick = {
-                        if (inputText.trim().isNotEmpty()) {
-                            messages.add(
-                                ChatMessage(
-                                    id = "${messages.size + 1}",
-                                    senderName = "Tú",
-                                    messageText = inputText.trim(),
-                                    timestamp = "Ahora",
-                                    isMine = true
-                                )
-                            )
+                        val content = inputText.trim()
+                        if (content.isNotEmpty()) {
                             inputText = ""
+                            scope.launch {
+                                val res = UniFindRepository.sendChatMessage(chatId, content)
+                                res.getOrNull()?.let { sentMsg ->
+                                    messages.add(sentMsg)
+                                }
+                            }
                         }
                     },
                     modifier = Modifier

@@ -1,6 +1,12 @@
 package com.salomontilla.frontunifind.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,11 +32,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,17 +60,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.salomontilla.frontunifind.R
+import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.ReportStatus
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.components.UnifindBottomBar
 import com.salomontilla.frontunifind.ui.theme.BlueLight
 import com.salomontilla.frontunifind.ui.theme.CardStroke
@@ -75,15 +91,16 @@ import com.salomontilla.frontunifind.ui.theme.UniautonomaNavy
 import com.salomontilla.frontunifind.ui.theme.UniautonomaOrange
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextPrimary
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextSecondary
-import com.salomontilla.frontunifind.ui.theme.YellowLight
+import kotlinx.coroutines.delay
 
 /**
  * =============================================================================
  * PANTALLA 2: FeedScreen (Feed Principal y Buscador de Objetos Unifind)
- * Rediseño Unificado con Identidad Visual Oficial Uniautónoma del Cauca
- * Tipografía: Museo Sans Rounded | Paleta: #062653, #0756A5, #F58220
+ * Conectado en tiempo real a UniFindRepository (API REST Node.js + MongoDB)
+ * Con Shimmer Skeleton Loading e Iconografía Vectorial Material 3 sin Emojis
  * =============================================================================
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun FeedScreen(
     onNavigateToDetail: (String) -> Unit,
@@ -94,18 +111,66 @@ fun FeedScreen(
     onShowHonorModal: () -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedStatus by remember { mutableStateOf(ReportStatus.FOUND) }
     var selectedChip by remember { mutableStateOf("Todos") }
 
+    var itemsList by remember { mutableStateOf<List<ItemDto>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
     val filterChips = listOf(
         "Todos",
-        "🏛 En Portería",
+        "En Portería",
         "Electrónica",
         "Documentos / Carnés",
         "Llaves",
         "Ropa y Accesorios"
     )
+
+    // Transición infinita para el efecto Shimmer de las tarjetas Skeleton
+    val shimmerTransition = rememberInfiniteTransition(label = "feed_shimmer")
+    val shimmerTranslate by shimmerTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_offset"
+    )
+    val shimmerBrush = Brush.linearGradient(
+        colors = listOf(
+            Color(0xFFE2E8F0),
+            Color(0xFFCBD5E1),
+            Color(0xFFE2E8F0)
+        ),
+        start = Offset(shimmerTranslate - 300f, 0f),
+        end = Offset(shimmerTranslate, 260f)
+    )
+
+    // Consulta reactiva a la API con debounce en búsqueda
+    LaunchedEffect(selectedStatus, selectedChip, searchQuery) {
+        if (searchQuery.isNotBlank()) {
+            delay(250)
+        }
+        isLoading = true
+        val typeParam = if (selectedStatus == ReportStatus.FOUND) "found" else "lost"
+        val custodyParam = if (selectedChip == "En Portería") "PORTERIA" else null
+        val categoryParam = when (selectedChip) {
+            "Todos", "En Portería" -> null
+            else -> selectedChip
+        }
+        val result = UniFindRepository.getItems(
+            type = typeParam,
+            category = categoryParam,
+            search = searchQuery.trim().takeIf { it.isNotEmpty() },
+            custodyType = custodyParam
+        )
+        itemsList = result.getOrDefault(emptyList())
+        isLoading = false
+    }
 
     Box(
         modifier = Modifier
@@ -130,7 +195,6 @@ fun FeedScreen(
                             )
                         )
                 ) {
-                    // Marca de agua vectorial del Grifo en el fondo de la cabecera
                     Image(
                         painter = painterResource(id = R.drawable.ic_grifo_uniautonoma),
                         contentDescription = null,
@@ -143,7 +207,6 @@ fun FeedScreen(
                             .alpha(0.06f)
                     )
 
-                    // Línea inferior de acento naranja institucional (#F58220)
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -158,38 +221,56 @@ fun FeedScreen(
                             .statusBarsPadding()
                             .padding(horizontal = 18.dp, vertical = 18.dp)
                     ) {
-                        // Fila superior: Logotipo Oficial + Notificaciones + Avatar compacto
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_logo_uniautonoma),
-                                contentDescription = "Uniautónoma del Cauca",
-                                contentScale = ContentScale.Fit,
-                                alignment = Alignment.CenterStart,
-                                modifier = Modifier
-                                    .height(42.dp)
-                                    .widthIn(max = 175.dp)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_logo_uniautonoma),
+                                    contentDescription = "Uniautónoma del Cauca",
+                                    contentScale = ContentScale.Fit,
+                                    alignment = Alignment.CenterStart,
+                                    modifier = Modifier
+                                        .height(36.dp)
+                                        .widthIn(max = 150.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50.dp))
+                                        .background(Color.White.copy(alpha = 0.12f))
+                                        .border(
+                                            1.dp,
+                                            UniautonomaOrange.copy(alpha = 0.7f),
+                                            RoundedCornerShape(50.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "UniFind",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = SurfaceWhite
+                                    )
+                                }
+                            }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            Box(contentAlignment = Alignment.TopEnd) {
                                 IconButton(
                                     onClick = {
                                         Toast.makeText(
                                             context,
-                                            "No tienes notificaciones pendientes",
+                                            "Conectado a UniFind API • ${UniFindRepository.currentUser.name ?: "Estudiante"}",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     },
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.10f))
+                                        .background(Color.White.copy(alpha = 0.12f))
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
@@ -198,31 +279,19 @@ fun FeedScreen(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
-
-                                // Avatar circular limpio para ir al Login/Perfil
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
+                                        .padding(top = 6.dp, end = 6.dp)
+                                        .size(8.dp)
                                         .clip(CircleShape)
-                                        .background(UniautonomaBlue)
-                                        .border(1.5.dp, UniautonomaOrange, CircleShape)
-                                        .clickable { onNavigateToLogin() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "CM",
-                                        fontFamily = MuseoSansRounded,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = SurfaceWhite
-                                    )
-                                }
+                                        .background(UniautonomaOrange)
+                                )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // Buscador limpio estilo Login (sin icono redundante de filtro)
+                        // Buscador predictivo conectado a GET /items?search=...
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -243,9 +312,13 @@ fun FeedScreen(
                                 value = searchQuery,
                                 onValueChange = { searchQuery = it },
                                 singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(
+                                    onSearch = { focusManager.clearFocus() }
+                                ),
                                 placeholder = {
                                     Text(
-                                        text = "Buscar objeto (ej. calculadora, carné, llaves)...",
+                                        text = "Buscar objeto (ej. calculadora, termo, carné)...",
                                         fontFamily = MuseoSansRounded,
                                         fontSize = 13.sp,
                                         color = UniautonomaTextSecondary
@@ -261,6 +334,19 @@ fun FeedScreen(
                                 ),
                                 modifier = Modifier.weight(1f)
                             )
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { searchQuery = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Limpiar búsqueda",
+                                        tint = UniautonomaTextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -275,7 +361,6 @@ fun FeedScreen(
                                 .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // Pestaña Encontrados
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
@@ -298,7 +383,11 @@ fun FeedScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
                                 Text(
-                                    text = "Encontrados (28)",
+                                    text = if (selectedStatus == ReportStatus.FOUND && !isLoading) {
+                                        "Encontrados (${itemsList.size})"
+                                    } else {
+                                        "Encontrados"
+                                    },
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 12.sp,
                                     fontWeight = if (selectedStatus == ReportStatus.FOUND) FontWeight.Bold else FontWeight.Medium,
@@ -306,7 +395,6 @@ fun FeedScreen(
                                 )
                             }
 
-                            // Pestaña Perdidos
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
@@ -329,7 +417,11 @@ fun FeedScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
                                 Text(
-                                    text = "Perdidos (14)",
+                                    text = if (selectedStatus == ReportStatus.LOST && !isLoading) {
+                                        "Perdidos (${itemsList.size})"
+                                    } else {
+                                        "Perdidos"
+                                    },
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 12.sp,
                                     fontWeight = if (selectedStatus == ReportStatus.LOST) FontWeight.Bold else FontWeight.Medium,
@@ -342,7 +434,7 @@ fun FeedScreen(
             }
 
             // ========================================================
-            // CHIPS DE FILTRO RÁPIDO (Incluye "🏛 En Portería")
+            // CHIPS DE FILTRO RÁPIDO (Sin Emojis, Icono Vectorial en "En Portería")
             // ========================================================
             item {
                 Spacer(modifier = Modifier.height(14.dp))
@@ -363,14 +455,27 @@ fun FeedScreen(
                                 if (isSelected) UniautonomaBlue else DividerStroke
                             )
                         ) {
-                            Text(
-                                text = chip,
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) SurfaceWhite else UniautonomaTextPrimary,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (chip == "En Portería") {
+                                    Icon(
+                                        imageVector = Icons.Default.Security,
+                                        contentDescription = null,
+                                        tint = if (isSelected) UniautonomaOrange else UniautonomaBlue,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                }
+                                Text(
+                                    text = chip,
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) SurfaceWhite else UniautonomaTextPrimary
+                                )
+                            }
                         }
                     }
                 }
@@ -378,134 +483,57 @@ fun FeedScreen(
             }
 
             // ========================================================
-            // TARJETAS DE OBJETOS (Orden dinámico según Encontrados vs Perdidos)
+            // ESTADOS DE CARGA SKELETON O LISTA DINÁMICA DE OBJETOS
             // ========================================================
-            if (selectedStatus == ReportStatus.FOUND) {
-                item(key = "card-found") {
-                    FoundFeedCard(onNavigateToDetail = onNavigateToDetail)
+            if (isLoading) {
+                items(count = 3, key = { "skeleton-$it" }) {
+                    FeedCardSkeleton(brush = shimmerBrush)
                     Spacer(modifier = Modifier.height(14.dp))
                 }
-                item(key = "card-lost") {
-                    LostFeedCard(onNavigateToDetail = onNavigateToDetail)
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-            } else {
-                item(key = "card-lost") {
-                    LostFeedCard(onNavigateToDetail = onNavigateToDetail)
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-                item(key = "card-found") {
-                    FoundFeedCard(onNavigateToDetail = onNavigateToDetail)
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-            }
-
-            // Tarjeta 3: Caso Devuelto con Éxito (Compacta y Limpia)
-            item(key = "card-returned") {
-                Surface(
-                    onClick = { onShowHonorModal() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = SurfaceWhite,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 4.dp,
-                    border = BorderStroke(1.dp, CardStroke)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            } else if (itemsList.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = SurfaceWhite,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 3.dp,
+                        border = BorderStroke(1.dp, CardStroke)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50.dp))
-                                    .background(GreenLight)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "✔ Entregado a su dueño",
-                                    fontFamily = MuseoSansRounded,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = GreenSuccess
-                                )
-                            }
                             Text(
-                                text = "Hoy",
+                                text = "No se encontraron objetos con este filtro",
                                 fontFamily = MuseoSansRounded,
-                                fontSize = 11.sp,
-                                color = UniautonomaTextSecondary
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = UniautonomaTextPrimary
                             )
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = "Chaqueta Impermeable Negra Talla M",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = UniautonomaTextPrimary
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Place,
-                                contentDescription = null,
-                                tint = UniautonomaBlue,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Cafetería Central • Sede La Casona",
+                                text = "Prueba limpiando la búsqueda o cambia entre Encontrados y Perdidos.",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
                                 color = UniautonomaTextSecondary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(YellowLight)
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEvents,
-                                    contentDescription = null,
-                                    tint = UniautonomaOrange,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Reconocimiento de Honor",
-                                    fontFamily = MuseoSansRounded,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = UniautonomaNavy
-                                )
-                            }
-                            Text(
-                                text = "+100 Pts",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = UniautonomaOrange
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            } else {
+                items(
+                    items = itemsList,
+                    key = { it.code.ifBlank { it.id } }
+                ) { itemDto ->
+                    DynamicFeedItemCard(
+                        item = itemDto,
+                        onNavigateToDetail = onNavigateToDetail
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
             }
         }
@@ -526,80 +554,281 @@ fun FeedScreen(
 }
 
 @Composable
-private fun FoundFeedCard(
-    onNavigateToDetail: (String) -> Unit
-) {
+private fun FeedCardSkeleton(brush: Brush) {
     Surface(
-        onClick = { onNavigateToDetail("UAC-8841") },
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 18.dp),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = SurfaceWhite,
         tonalElevation = 0.dp,
         shadowElevation = 4.dp,
         border = BorderStroke(1.dp, CardStroke)
     ) {
         Column {
-            // Cabecera visual del objeto encontrado
+            // Cabecera Skeleton
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(124.dp)
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(UniautonomaNavy, NavyCard)
-                        )
-                    )
+                    .height(116.dp)
+                    .background(brush)
                     .padding(12.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_grifo_uniautonoma),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(86.dp)
-                        .alpha(0.08f)
-                )
-
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
+                        .width(135.dp)
+                        .height(22.dp)
                         .clip(RoundedCornerShape(50.dp))
-                        .background(GreenLight)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "🏛 En Portería / Custodia",
-                        fontFamily = MuseoSansRounded,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = GreenSuccess
-                    )
-                }
-
-                Text(
-                    text = "Hace 2 horas",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = SurfaceWhite.copy(alpha = 0.85f),
-                    modifier = Modifier.align(Alignment.TopEnd)
-                )
-
-                Text(
-                    text = "ID #UAC-8841 • Electrónica",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = UniautonomaOrange,
-                    modifier = Modifier.align(Alignment.BottomStart)
+                        .background(SurfaceWhite.copy(alpha = 0.55f))
                 )
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
+                // Línea de título
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.78f)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Subtítulo de ubicación
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.52f)
+                        .height(13.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Descripción simulada (2 líneas)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(11.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.65f)
+                        .height(11.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(brush)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Botón simulado
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(brush)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DynamicFeedItemCard(
+    item: ItemDto,
+    onNavigateToDetail: (String) -> Unit
+) {
+    val itemCode = item.code.ifBlank { item.id }
+    val isLost = item.type.equals("lost", ignoreCase = true)
+    val isPorteria = item.custodyType.equals("PORTERIA", ignoreCase = true)
+
+    Surface(
+        onClick = { onNavigateToDetail(itemCode) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = SurfaceWhite,
+        tonalElevation = 0.dp,
+        shadowElevation = 6.dp,
+        border = BorderStroke(1.dp, CardStroke)
+    ) {
+        if (!isLost) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(124.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(UniautonomaNavy, NavyCard)
+                            )
+                        )
+                        .padding(12.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_grifo_uniautonoma),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(86.dp)
+                            .alpha(0.08f)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(if (isPorteria) GreenLight else BlueLight)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isPorteria) Icons.Default.Security else Icons.Default.Person,
+                            contentDescription = null,
+                            tint = if (isPorteria) GreenSuccess else UniautonomaBlue,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = if (isPorteria) {
+                                "En Portería / Custodia"
+                            } else {
+                                "En Custodia de Estudiante"
+                            },
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isPorteria) GreenSuccess else UniautonomaBlue
+                        )
+                    }
+
+                    Text(
+                        text = item.timeAgo ?: "Reciente",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = SurfaceWhite.copy(alpha = 0.85f),
+                        modifier = Modifier.align(Alignment.TopEnd)
+                    )
+
+                    Text(
+                        text = "ID #$itemCode • ${item.category.ifBlank { "General" }}",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = UniautonomaOrange,
+                        modifier = Modifier.align(Alignment.BottomStart)
+                    )
+                }
+
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = item.title,
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = UniautonomaTextPrimary
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Place,
+                            contentDescription = null,
+                            tint = UniautonomaBlue,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = item.displayLocation,
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = UniautonomaBlue
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = item.displayDescription,
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 12.sp,
+                        color = UniautonomaTextSecondary,
+                        lineHeight = 17.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Button(
+                        onClick = { onNavigateToDetail(itemCode) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = UniautonomaBlue,
+                            contentColor = SurfaceWhite
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "¡Es mío! Reclamar →",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        } else {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50.dp))
+                            .background(BlueLight)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = UniautonomaBlue,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Objeto Perdido • #$itemCode",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = UniautonomaBlue
+                        )
+                    }
+                    Text(
+                        text = item.timeAgo ?: "Reciente",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 11.sp,
+                        color = UniautonomaTextSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 Text(
-                    text = "Calculadora Científica Casio fx-570ES",
+                    text = item.title,
                     fontFamily = MuseoSansRounded,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
@@ -617,7 +846,7 @@ private fun FoundFeedCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Bloque A · Lab 201 (Sistemas)",
+                        text = item.displayLocation,
                         fontFamily = MuseoSansRounded,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -628,7 +857,7 @@ private fun FoundFeedCard(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "Encontrada sobre una de las terminales del fondo. Tiene tapa protectora gris con señas particulares.",
+                    text = item.displayDescription,
                     fontFamily = MuseoSansRounded,
                     fontSize = 12.sp,
                     color = UniautonomaTextSecondary,
@@ -639,130 +868,22 @@ private fun FoundFeedCard(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                Button(
-                    onClick = { onNavigateToDetail("UAC-8841") },
+                OutlinedButton(
+                    onClick = { onNavigateToDetail(itemCode) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = UniautonomaBlue,
-                        contentColor = SurfaceWhite
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.5.dp, UniautonomaBlue)
                 ) {
                     Text(
-                        text = "¡Es mío! Reclamar →",
+                        text = "¡Lo encontré! Avisar →",
                         fontFamily = MuseoSansRounded,
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LostFeedCard(
-    onNavigateToDetail: (String) -> Unit
-) {
-    Surface(
-        onClick = { onNavigateToDetail("UAC-7720") },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = SurfaceWhite,
-        tonalElevation = 0.dp,
-        shadowElevation = 4.dp,
-        border = BorderStroke(1.dp, CardStroke)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50.dp))
-                        .background(BlueLight)
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "🔍 Objeto Perdido",
-                        fontFamily = MuseoSansRounded,
-                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = UniautonomaBlue
                     )
                 }
-                Text(
-                    text = "Ayer, 4:15 PM",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 11.sp,
-                    color = UniautonomaTextSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text(
-                text = "Carné Estudiantil Ingeniería de Sistemas",
-                fontFamily = MuseoSansRounded,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = UniautonomaTextPrimary
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Place,
-                    contentDescription = null,
-                    tint = UniautonomaBlue,
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Biblioteca Central · Sala de Estudio",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = UniautonomaBlue
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Extraviado en los cubículos del segundo piso. Porta-carné azul con cinta Uniautónoma. Titular: C. Mosquera.",
-                fontFamily = MuseoSansRounded,
-                fontSize = 12.sp,
-                color = UniautonomaTextSecondary,
-                lineHeight = 17.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            OutlinedButton(
-                onClick = { onNavigateToDetail("UAC-7720") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.5.dp, UniautonomaBlue)
-            ) {
-                Text(
-                    text = "¡Lo encontré! Avisar →",
-                    fontFamily = MuseoSansRounded,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = UniautonomaBlue
-                )
             }
         }
     }
