@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -64,7 +63,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -110,7 +108,6 @@ fun FeedScreen(
     onNavigateToLogin: () -> Unit,
     onShowHonorModal: () -> Unit
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var searchQuery by remember { mutableStateOf("") }
@@ -260,13 +257,7 @@ fun FeedScreen(
 
                             Box(contentAlignment = Alignment.TopEnd) {
                                 IconButton(
-                                    onClick = {
-                                        Toast.makeText(
-                                            context,
-                                            "Conectado a UniFind API • ${UniFindRepository.currentUser.name ?: "Estudiante"}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    },
+                                    onClick = { /* Notificaciones institucionales */ },
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(CircleShape)

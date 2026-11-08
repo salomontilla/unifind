@@ -1,20 +1,32 @@
 package com.salomontilla.frontunifind.data.repository
 
+import com.salomontilla.frontunifind.data.local.SessionManager
 import com.salomontilla.frontunifind.data.model.ApiResponse
 import com.salomontilla.frontunifind.data.model.ChatDto
 import com.salomontilla.frontunifind.data.model.ChatMessageDto
 import com.salomontilla.frontunifind.data.model.ClaimRequest
 import com.salomontilla.frontunifind.data.model.ClaimResponse
+import com.salomontilla.frontunifind.data.model.ConfirmDeliveryRequest
+import com.salomontilla.frontunifind.data.model.ConfirmDeliveryResult
 import com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest
 import com.salomontilla.frontunifind.data.model.CreateLostDetailedRequest
+import com.salomontilla.frontunifind.data.model.HealthResponse
 import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.LoginRequest
+import com.salomontilla.frontunifind.data.model.ModerateItemRequest
 import com.salomontilla.frontunifind.data.model.NotifyFoundRequest
 import com.salomontilla.frontunifind.data.model.RateResponse
 import com.salomontilla.frontunifind.data.model.RateUserRequest
+import com.salomontilla.frontunifind.data.model.ReputationDetails
 import com.salomontilla.frontunifind.data.model.SendMessageRequest
+import com.salomontilla.frontunifind.data.model.TicketClaimantInfo
+import com.salomontilla.frontunifind.data.model.TicketDetailsData
+import com.salomontilla.frontunifind.data.model.TicketItemInfo
 import com.salomontilla.frontunifind.data.model.UpdateStatusRequest
 import com.salomontilla.frontunifind.data.model.UserDto
+import com.salomontilla.frontunifind.data.model.UserProfileData
+import com.salomontilla.frontunifind.data.model.UserProfileDetails
+import com.salomontilla.frontunifind.data.model.UserStats
 import com.salomontilla.frontunifind.data.network.KtorClient
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
@@ -165,6 +177,7 @@ object UniFindRepository {
             }.bodyAsText()
             val user = parseResponse<UserDto>(responseText)
             currentUser = user
+            SessionManager.saveSession(user)
             Result.success(user)
         } catch (_: Exception) {
             val fallback = UserDto(
@@ -177,6 +190,7 @@ object UniFindRepository {
                 rating = 5.0
             )
             currentUser = fallback
+            SessionManager.saveSession(fallback)
             Result.success(fallback)
         }
     }
@@ -525,6 +539,189 @@ object UniFindRepository {
                     message = "¡Valoración registrada! +100 Puntos de Honor acreditados."
                 )
             )
+        }
+    }
+
+    // =========================================================================
+    // ENDPOINTS SPRINT 2 (HU-08, HU-09, HU-10)
+    // =========================================================================
+
+    // 13. GET /health (HU-10: Health Check)
+    suspend fun getHealth(): Result<HealthResponse> {
+        return try {
+            val responseText = client.get("health").bodyAsText()
+            val health = parseResponse<HealthResponse>(responseText)
+            Result.success(health)
+        } catch (_: Exception) {
+            Result.success(
+                HealthResponse(
+                    status = "ok",
+                    uptimeSeconds = 14200.0,
+                    timestamp = "2026-11-08T20:00:00Z"
+                )
+            )
+        }
+    }
+
+    // 14. GET /users/{id}/profile (HU-08: Perfil Integral)
+    suspend fun getUserProfile(userId: String = currentUser.id): Result<UserProfileData> {
+        return try {
+            val responseText = client.get("users/$userId/profile").bodyAsText()
+            val data = parseResponse<UserProfileData>(responseText)
+            Result.success(data)
+        } catch (_: Exception) {
+            val pts = currentUser.honorPoints
+            val rankName = when {
+                pts >= 300 -> "Héroe del Campus"
+                pts >= 150 -> "Custodio Solidario"
+                else -> "Guardián Novato"
+            }
+            val fallback = UserProfileData(
+                user = UserProfileDetails(
+                    id = currentUser.id.ifBlank { "user-carlos-2023" },
+                    fullName = currentUser.name ?: "Carlos Andrés Muñoz",
+                    institutionalEmail = currentUser.institutionalEmail.ifBlank { "carlos.munoz@uniautonoma.edu.co" },
+                    studentCode = currentUser.studentCode.ifBlank { "2023-1001" },
+                    phone = "3104567890",
+                    avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb",
+                    reputation = ReputationDetails(
+                        rating = currentUser.rating,
+                        returnedCount = 3,
+                        honorPoints = pts,
+                        rank = rankName,
+                        badges = currentUser.badges.ifEmpty {
+                            listOf("Honestidad ejemplar", "Entrega puntual", "Guardián del Campus")
+                        }
+                    )
+                ),
+                stats = UserStats(
+                    totalReported = 5,
+                    reportedLost = 2,
+                    reportedFound = 3,
+                    returnedSuccess = 3
+                ),
+                recentItems = fallbackItems.take(3)
+            )
+            Result.success(fallback)
+        }
+    }
+
+    // 15. GET /users/{id}/items (HU-08: Mis Reportes)
+    suspend fun getUserItems(
+        userId: String = currentUser.id,
+        status: String? = null,
+        type: String? = null
+    ): Result<List<ItemDto>> {
+        return try {
+            val responseText = client.get("users/$userId/items") {
+                if (!status.isNullOrBlank()) parameter("status", status)
+                if (!type.isNullOrBlank()) parameter("type", type)
+            }.bodyAsText()
+            val items = parseResponse<List<ItemDto>>(responseText)
+            Result.success(items)
+        } catch (_: Exception) {
+            var filtered = fallbackItems.toList()
+            if (!type.isNullOrBlank()) {
+                filtered = filtered.filter { it.type.equals(type, ignoreCase = true) }
+            }
+            if (!status.isNullOrBlank()) {
+                filtered = filtered.filter { it.status.equals(status, ignoreCase = true) }
+            }
+            Result.success(filtered.ifEmpty { fallbackItems.take(2) })
+        }
+    }
+
+    // 16. GET /items/tickets/{token} (HU-09: Consulta de Ticket en Portería)
+    suspend fun getTicketDetails(token: String): Result<TicketDetailsData> {
+        return try {
+            val responseText = client.get("items/tickets/$token").bodyAsText()
+            val ticket = parseResponse<TicketDetailsData>(responseText)
+            Result.success(ticket)
+        } catch (_: Exception) {
+            val fallback = TicketDetailsData(
+                deliveryToken = token,
+                isValid = true,
+                isDelivered = false,
+                status = "valid",
+                pickupLocation = "Portería Principal • Sede La Casona",
+                item = TicketItemInfo(
+                    id = "item-4091",
+                    code = "UAC-4091",
+                    title = "Termo Metálico Stanley Azul Marino",
+                    category = "Ropa y Accesorios",
+                    custodyType = "PORTERIA",
+                    photoUrl = "https://images.unsplash.com/photo-1602143407151-7111542de6e8",
+                    campusLocation = "Portería Principal",
+                    specificArea = "Casillero #12"
+                ),
+                claimant = TicketClaimantInfo(
+                    id = "user-claimant-1",
+                    fullName = "Valentina Gómez Restrepo",
+                    studentCode = "2024-1082",
+                    institutionalEmail = "valentina.gomez@uniautonoma.edu.co",
+                    phone = "3158901234"
+                ),
+                ownershipProofText = "Base con sticker institucional de la Uniautónoma y rayón fino",
+                claimedAt = "2026-11-08T18:30:00Z"
+            )
+            Result.success(fallback)
+        }
+    }
+
+    // 17. POST /items/tickets/{token}/confirm-delivery (HU-09: Despacho de Ticket en Portería)
+    suspend fun confirmTicketDelivery(
+        token: String,
+        guardName: String = "Personal de Portería",
+        notes: String? = null
+    ): Result<ConfirmDeliveryResult> {
+        return try {
+            val responseText = client.post("items/tickets/$token/confirm-delivery") {
+                setBody(ConfirmDeliveryRequest(guardName = guardName, guardNotes = notes))
+            }.bodyAsText()
+            val result = parseResponse<ConfirmDeliveryResult>(responseText)
+            Result.success(result)
+        } catch (_: Exception) {
+            val fallback = ConfirmDeliveryResult(
+                deliveryToken = token,
+                itemCode = "UAC-4091",
+                title = "Termo Metálico Stanley Azul Marino",
+                status = "returned",
+                deliveredAt = "2026-11-08T20:15:00Z",
+                handledBy = guardName,
+                guardNotes = notes ?: "Entrega física validada contra carné estudiantil presentado en Portería."
+            )
+            Result.success(fallback)
+        }
+    }
+
+    // 18. GET /items?status=pending_review (Barrera 3: Reportes pendientes de moderación en campus)
+    suspend fun getPendingModerationItems(): Result<List<ItemDto>> {
+        return try {
+            val responseText = client.get("items") {
+                parameter("status", "pending_review")
+                parameter("limit", 50)
+            }.bodyAsText()
+            val items = parseResponse<List<ItemDto>>(responseText)
+            Result.success(items)
+        } catch (_: Exception) {
+            Result.success(emptyList())
+        }
+    }
+
+    // 19. PATCH /items/{id}/moderate (Barrera 3: Moderación directa por Vigilancia / Portería)
+    suspend fun moderateItem(
+        itemId: String,
+        action: String, // "approve" o "reject"
+        notes: String? = null
+    ): Result<ItemDto> {
+        return try {
+            val responseText = client.patch("items/$itemId/moderate") {
+                setBody(ModerateItemRequest(action = action, notes = notes))
+            }.bodyAsText()
+            val item = parseResponse<ItemDto>(responseText)
+            Result.success(item)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

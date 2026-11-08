@@ -34,6 +34,10 @@ val GreenSuccess = Color(0xFF00A86B)
 val GreenLight = Color(0xFFE6F7F0)
 val GreenBorder = Color(0xFFA3E8CC)
 
+val RedDanger = Color(0xFFDC2626)
+val RedLight = Color(0xFFFEF2F2)
+val RedBorder = Color(0xFFFECACA)
+
 // Superficies y Fondos
 val ScreenBackground = Color(0xFFF5F7FC)
 val SurfaceWhite = Color(0xFFFFFFFF)

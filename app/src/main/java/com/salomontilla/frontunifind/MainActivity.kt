@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.salomontilla.frontunifind.data.local.SessionManager
 import com.salomontilla.frontunifind.ui.navigation.UnifindApp
 import com.salomontilla.frontunifind.ui.theme.UnifindTheme
 
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SessionManager.init(applicationContext)
         enableEdgeToEdge(
             navigationBarStyle = SystemBarStyle.light(
                 Color.TRANSPARENT,

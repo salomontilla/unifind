@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -83,7 +81,6 @@ fun RatingModal(
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var rating by remember { mutableIntStateOf(5) }
     var comment by remember { mutableStateOf("") }
@@ -319,21 +316,13 @@ fun RatingModal(
                     if (isSaving) return@Button
                     isSaving = true
                     scope.launch {
-                        val res = UniFindRepository.rateUser(
+                        UniFindRepository.rateUser(
                             userId = UniFindRepository.currentUser.id.ifBlank { "2023-1001" },
                             rating = rating,
                             comment = comment.trim().takeIf { it.isNotEmpty() },
                             badges = selectedBadges.toList()
                         )
                         isSaving = false
-                        val rateResp = res.getOrNull()
-                        val pts = rateResp?.pointsAdded ?: 100
-                        val total = rateResp?.honorPoints ?: 300
-                        Toast.makeText(
-                            context,
-                            "¡Valoración guardada! +$pts Pts de Honor (Total: $total Pts)",
-                            Toast.LENGTH_LONG
-                        ).show()
                         onDismiss()
                     }
                 },

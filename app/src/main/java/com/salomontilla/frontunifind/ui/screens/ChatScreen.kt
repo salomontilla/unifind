@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,7 +49,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +80,6 @@ fun ChatScreen(
     onBack: () -> Unit,
     onConfirmDelivery: () -> Unit
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var inputText by remember { mutableStateOf("") }
     var isUpdatingStatus by remember { mutableStateOf(false) }
@@ -249,9 +246,7 @@ fun ChatScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = {
-                        Toast.makeText(context, "Adjuntar foto de entrega", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { /* Adjuntar foto de entrega en chat */ }
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,

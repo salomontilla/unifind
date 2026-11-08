@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -36,6 +35,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -61,7 +63,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -75,6 +76,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.salomontilla.frontunifind.R
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
+import com.salomontilla.frontunifind.ui.components.InstitutionInfoSheet
+import com.salomontilla.frontunifind.ui.components.InstitutionalTexts
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenLight
@@ -102,12 +105,12 @@ import kotlinx.coroutines.delay
 fun LoginScreen(
     onLoginSuccess: () -> Unit
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var email by remember { mutableStateOf("carlos.munoz@uniautonoma.edu.co") }
     var studentId by remember { mutableStateOf("2023-1001") }
     var rememberMe by remember { mutableStateOf(true) }
+    var activeInfoSheet by remember { mutableStateOf<String?>(null) }
 
     var emailFocused by remember { mutableStateOf(false) }
     var studentIdFocused by remember { mutableStateOf(false) }
@@ -123,14 +126,8 @@ fun LoginScreen(
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
-            val result = UniFindRepository.login(normalizedEmail, studentId.trim())
+            UniFindRepository.login(normalizedEmail, studentId.trim())
             isLoading = false
-            val user = result.getOrNull()
-            Toast.makeText(
-                context,
-                "Bienvenido ${user?.name ?: "Estudiante"} • Comunidad Uniautónoma",
-                Toast.LENGTH_SHORT
-            ).show()
             onLoginSuccess()
         }
     }
@@ -627,11 +624,7 @@ fun LoginScreen(
                                     .height(48.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .clickable {
-                                        Toast.makeText(
-                                            context,
-                                            "Mesa de Ayuda TIC Uniautónoma: soporte@uniautonoma.edu.co",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                        activeInfoSheet = "TIC"
                                     }
                                     .padding(horizontal = 6.dp),
                                 contentAlignment = Alignment.Center
@@ -815,11 +808,7 @@ fun LoginScreen(
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    Toast.makeText(
-                                        context,
-                                        "Políticas de Tratamiento de Datos Personales • Uniautónoma",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    activeInfoSheet = "PRIVACY"
                                 }
                                 .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
@@ -845,11 +834,7 @@ fun LoginScreen(
                                 .height(48.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable {
-                                    Toast.makeText(
-                                        context,
-                                        "Reglamento de Bienestar Universitario • Uniautónoma",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    activeInfoSheet = "BIENESTAR"
                                 }
                                 .padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
@@ -867,6 +852,31 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
             }
+        }
+
+        // ModalBottomSheet Institucional
+        when (activeInfoSheet) {
+            "TIC" -> InstitutionInfoSheet(
+                title = InstitutionalTexts.TIC_TITLE,
+                subtitle = InstitutionalTexts.TIC_SUBTITLE,
+                contentText = InstitutionalTexts.TIC_CONTENT,
+                icon = Icons.Default.SupportAgent,
+                onDismiss = { activeInfoSheet = null }
+            )
+            "PRIVACY" -> InstitutionInfoSheet(
+                title = InstitutionalTexts.PRIVACY_TITLE,
+                subtitle = InstitutionalTexts.PRIVACY_SUBTITLE,
+                contentText = InstitutionalTexts.PRIVACY_CONTENT,
+                icon = Icons.Default.Security,
+                onDismiss = { activeInfoSheet = null }
+            )
+            "BIENESTAR" -> InstitutionInfoSheet(
+                title = InstitutionalTexts.BIENESTAR_TITLE,
+                subtitle = InstitutionalTexts.BIENESTAR_SUBTITLE,
+                contentText = InstitutionalTexts.BIENESTAR_CONTENT,
+                icon = Icons.Default.Description,
+                onDismiss = { activeInfoSheet = null }
+            )
         }
     }
 }

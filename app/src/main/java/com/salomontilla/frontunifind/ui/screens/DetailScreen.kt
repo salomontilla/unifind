@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -35,9 +34,11 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
@@ -45,6 +46,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,13 +61,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.salomontilla.frontunifind.R
 import com.salomontilla.frontunifind.data.model.ClaimRequest
 import com.salomontilla.frontunifind.data.model.ClaimResponse
@@ -97,13 +97,13 @@ import kotlinx.coroutines.launch
  * Con Ticket Modal Institucional de Retiro en Portería (TICKET-XXXX-RET)
  * =============================================================================
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     itemId: String = "UAC-8841",
     onBack: () -> Unit,
     onNavigateToChat: (String) -> Unit
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var currentItem by remember { mutableStateOf<ItemDto?>(null) }
@@ -218,11 +218,6 @@ fun DetailScreen(
                                 isSubmitting = false
                                 val claimResp = res.getOrNull()
                                 if (action == "HAVE_IT_WITH_ME") {
-                                    Toast.makeText(
-                                        context,
-                                        "¡Aviso enviado! Abriendo chat con el dueño...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
                                     onNavigateToChat(claimResp?.chatId ?: "chat-1")
                                 } else {
                                     ticketModalResponse = claimResp ?: ClaimResponse(
@@ -238,11 +233,6 @@ fun DetailScreen(
                         } else {
                             if (answerText.trim().isEmpty()) {
                                 hasError = true
-                                Toast.makeText(
-                                    context,
-                                    "Describe los detalles para reclamar tu objeto",
-                                    Toast.LENGTH_SHORT
-                                ).show()
                             } else {
                                 hasError = false
                                 isSubmitting = true
@@ -266,11 +256,6 @@ fun DetailScreen(
                                                 ?: "Presenta este token digital junto con tu carné estudiantil en Portería para reclamar tu objeto."
                                         )
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            "¡Propiedad validada! Abriendo canal de entrega...",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
                                         onNavigateToChat(claimResp?.chatId ?: "chat-1")
                                     }
                                 }
@@ -701,9 +686,21 @@ fun DetailScreen(
                                 shape = RoundedCornerShape(14.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = UniautonomaBlue,
-                                    unfocusedBorderColor = InputStroke
+                                    unfocusedBorderColor = InputStroke,
+                                    errorBorderColor = UniautonomaOrange,
+                                    errorLabelColor = UniautonomaOrange
                                 )
                             )
+                            if (hasError) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Por favor describe las señas particulares para reclamar",
+                                    color = UniautonomaOrange,
+                                    fontSize = 11.sp,
+                                    fontFamily = MuseoSansRounded,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -716,137 +713,146 @@ fun DetailScreen(
     // =========================================================================
     val activeTicket = ticketModalResponse
     if (activeTicket != null) {
-        Dialog(onDismissRequest = { ticketModalResponse = null }) {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = SurfaceWhite,
-                tonalElevation = 0.dp,
-                shadowElevation = 16.dp,
-                border = BorderStroke(2.dp, UniautonomaOrange)
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { ticketModalResponse = null },
+            sheetState = sheetState,
+            containerColor = SurfaceWhite,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 44.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(UniautonomaTextSecondary.copy(alpha = 0.35f))
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
+                Box(
+                    modifier = Modifier
+                        .size(58.dp)
+                        .clip(CircleShape)
+                        .background(GreenLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ConfirmationNumber,
+                        contentDescription = null,
+                        tint = GreenSuccess,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Ticket Oficial de Portería",
+                    fontFamily = MuseoSansRounded,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = UniautonomaNavy
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(22.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(UniautonomaNavy)
+                        .padding(vertical = 12.dp, horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(58.dp)
-                            .clip(CircleShape)
-                            .background(GreenLight),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ConfirmationNumber,
-                            contentDescription = null,
-                            tint = GreenSuccess,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "Ticket Oficial de Portería",
-                        fontFamily = MuseoSansRounded,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = UniautonomaNavy
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(UniautonomaNavy)
-                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "CÓDIGO DE ENTREGA VERIFICADO",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = UniautonomaOrange
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = activeTicket.deliveryToken ?: "TICKET-4091-RET",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = SurfaceWhite
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(BlueLight)
-                            .padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Place,
-                            contentDescription = null,
-                            tint = UniautonomaBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = activeTicket.pickupLocation ?: "Portería Principal • Sede La Casona",
+                            text = "CÓDIGO DE ENTREGA VERIFICADO",
                             fontFamily = MuseoSansRounded,
-                            fontSize = 12.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
-                            color = UniautonomaNavy
+                            color = UniautonomaOrange
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = activeTicket.deliveryToken ?: "TICKET-4091-RET",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = SurfaceWhite
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(BlueLight)
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Place,
+                        contentDescription = null,
+                        tint = UniautonomaBlue,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = activeTicket.instructions
-                            ?: "Presenta este ticket junto con tu carné institucional en la Portería Principal para retirar tu objeto.",
+                        text = activeTicket.pickupLocation ?: "Portería Principal • Sede La Casona",
                         fontFamily = MuseoSansRounded,
                         fontSize = 12.sp,
-                        color = UniautonomaTextSecondary,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 17.sp
+                        fontWeight = FontWeight.Bold,
+                        color = UniautonomaNavy
                     )
+                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    Button(
-                        onClick = {
-                            ticketModalResponse = null
-                            onBack()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = UniautonomaBlue,
-                            contentColor = SurfaceWhite
-                        )
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Entendido, ir a Portería",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                Text(
+                    text = activeTicket.instructions
+                        ?: "Presenta este ticket junto con tu carné institucional en la Portería Principal para retirar tu objeto.",
+                    fontFamily = MuseoSansRounded,
+                    fontSize = 12.sp,
+                    color = UniautonomaTextSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        ticketModalResponse = null
+                        onBack()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = UniautonomaBlue,
+                        contentColor = SurfaceWhite
+                    )
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Entendido, ir a Portería",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

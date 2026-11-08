@@ -1,6 +1,5 @@
 package com.salomontilla.frontunifind.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,8 +20,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -60,7 +61,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -97,7 +97,6 @@ import com.salomontilla.frontunifind.ui.theme.YellowLight
 fun ReportScreen(
     onBack: () -> Unit
 ) {
-    val context = LocalContext.current
     var isFound by remember { mutableStateOf(true) }
 
     // Estados para Modo Exprés (Encontré / Portería)
@@ -112,6 +111,7 @@ fun ReportScreen(
     var isAnonymous by remember { mutableStateOf(true) }
     var securityQuestion by remember { mutableStateOf("¿Qué sticker o marca tiene en el estuche?") }
     var securityAnswer by remember { mutableStateOf("Sticker de calavera con iniciales CM") }
+    var hasPhotoAttached by remember { mutableStateOf(true) }
 
     // Estados para Modo Objeto Perdido (Dueño)
     var lostTitle by remember { mutableStateOf("Carné Estudiantil Ingeniería de Sistemas") }
@@ -119,9 +119,11 @@ fun ReportScreen(
     var lostDistinguishingMarks by remember { mutableStateOf("Sticker del semillero de programación al respaldo") }
     var selectedLostZone by remember { mutableStateOf("Biblioteca") }
     var lostLocationRef by remember { mutableStateOf("Cubículos individuales Piso 2") }
+    var hasLostPhotoAttached by remember { mutableStateOf(false) }
 
-    var hasError by remember { mutableStateOf(false) }
+    var titleHasError by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
+    var showModerationDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val quickItemSuggestions = listOf(
@@ -236,7 +238,7 @@ fun ReportScreen(
                             Surface(
                                 onClick = {
                                     isFound = true
-                                    hasError = false
+                                    titleHasError = false
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -277,7 +279,7 @@ fun ReportScreen(
                             Surface(
                                 onClick = {
                                     isFound = false
-                                    hasError = false
+                                    titleHasError = false
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -362,39 +364,41 @@ fun ReportScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(86.dp)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(NavyCard)
-                                    .padding(6.dp)
-                            ) {
-                                IconButton(
-                                    onClick = { Toast.makeText(context, "Foto eliminada", Toast.LENGTH_SHORT).show() },
+                            if (hasPhotoAttached) {
+                                Box(
                                     modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(20.dp)
+                                        .size(86.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(NavyCard)
+                                        .padding(6.dp)
                                 ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = UniautonomaOrange)
-                                }
-                                Row(
-                                    modifier = Modifier.align(Alignment.BottomStart),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = GreenSuccess,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "Lista",
-                                        fontFamily = MuseoSansRounded,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = SurfaceWhite
-                                    )
+                                    IconButton(
+                                        onClick = { hasPhotoAttached = false },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = UniautonomaOrange)
+                                    }
+                                    Row(
+                                        modifier = Modifier.align(Alignment.BottomStart),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = GreenSuccess,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "Lista",
+                                            fontFamily = MuseoSansRounded,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SurfaceWhite
+                                        )
+                                    }
                                 }
                             }
 
@@ -406,7 +410,7 @@ fun ReportScreen(
                                     .background(BlueLight)
                                     .border(1.5.dp, UniautonomaBlue, RoundedCornerShape(14.dp))
                                     .clickable {
-                                        Toast.makeText(context, "Abriendo cámara rápida...", Toast.LENGTH_SHORT).show()
+                                        hasPhotoAttached = true
                                     }
                                     .padding(12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -420,7 +424,7 @@ fun ReportScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Tomar / Cambiar Foto",
+                                    text = if (hasPhotoAttached) "Tomar / Cambiar Foto" else "Tomar Foto Rápida",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -451,7 +455,7 @@ fun ReportScreen(
                                         .clickable {
                                             selectedQuickType = chipLabel
                                             title = suggestedTitle
-                                            hasError = false
+                                            titleHasError = false
                                         }
                                         .padding(horizontal = 12.dp, vertical = 7.dp)
                                 ) {
@@ -472,18 +476,30 @@ fun ReportScreen(
                             value = title,
                             onValueChange = {
                                 title = it
-                                if (it.isNotEmpty()) hasError = false
+                                if (it.isNotEmpty()) titleHasError = false
                             },
                             label = { Text("¿Qué objeto es? *", fontFamily = MuseoSansRounded, fontSize = 12.sp) },
-                            isError = hasError,
+                            isError = titleHasError,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = UniautonomaBlue,
-                                unfocusedBorderColor = InputStroke
+                                unfocusedBorderColor = InputStroke,
+                                errorBorderColor = UniautonomaOrange,
+                                errorLabelColor = UniautonomaOrange
                             )
                         )
+                        if (titleHasError) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Por favor indica qué objeto encontraste",
+                                color = UniautonomaOrange,
+                                fontSize = 11.sp,
+                                fontFamily = MuseoSansRounded,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
@@ -776,18 +792,30 @@ fun ReportScreen(
                             value = lostTitle,
                             onValueChange = {
                                 lostTitle = it
-                                if (it.isNotEmpty()) hasError = false
+                                if (it.isNotEmpty()) titleHasError = false
                             },
                             label = { Text("¿Qué objeto se te perdió? *", fontFamily = MuseoSansRounded, fontSize = 12.sp) },
-                            isError = hasError,
+                            isError = titleHasError,
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = UniautonomaBlue,
-                                unfocusedBorderColor = InputStroke
+                                unfocusedBorderColor = InputStroke,
+                                errorBorderColor = UniautonomaOrange,
+                                errorLabelColor = UniautonomaOrange
                             )
                         )
+                        if (titleHasError) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Por favor indica qué objeto se te perdió",
+                                color = UniautonomaOrange,
+                                fontSize = 11.sp,
+                                fontFamily = MuseoSansRounded,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(10.dp))
 
@@ -882,23 +910,28 @@ fun ReportScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(BlueLight)
-                                .border(1.dp, UniautonomaBlue, RoundedCornerShape(14.dp))
+                                .background(if (hasLostPhotoAttached) GreenLight else BlueLight)
+                                .border(1.dp, if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue, RoundedCornerShape(14.dp))
                                 .clickable {
-                                    Toast.makeText(context, "Seleccionar foto de galería", Toast.LENGTH_SHORT).show()
+                                    hasLostPhotoAttached = !hasLostPhotoAttached
                                 }
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(Icons.Default.AddAPhoto, contentDescription = null, tint = UniautonomaBlue, modifier = Modifier.size(20.dp))
+                            Icon(
+                                imageVector = if (hasLostPhotoAttached) Icons.Default.Check else Icons.Default.AddAPhoto,
+                                contentDescription = null,
+                                tint = if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Adjuntar foto de referencia (Opcional)",
+                                text = if (hasLostPhotoAttached) "Foto de referencia adjuntada" else "Adjuntar foto de referencia (Opcional)",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = UniautonomaBlue
+                                color = if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue
                             )
                         }
                     }
@@ -913,10 +946,9 @@ fun ReportScreen(
                     if (isPublishing) return@Button
                     val activeTitle = if (isFound) title else lostTitle
                     if (activeTitle.trim().isEmpty()) {
-                        hasError = true
-                        Toast.makeText(context, "Por favor indica qué objeto es", Toast.LENGTH_SHORT).show()
+                        titleHasError = true
                     } else {
-                        hasError = false
+                        titleHasError = false
                         isPublishing = true
                         scope.launch {
                             if (isFound) {
@@ -926,7 +958,7 @@ fun ReportScreen(
                                     "Termo / Ropa" -> "Ropa y Accesorios"
                                     else -> "Electrónica"
                                 }
-                                val res = UniFindRepository.createFoundExpress(
+                                UniFindRepository.createFoundExpress(
                                     CreateFoundExpressRequest(
                                         title = title.trim(),
                                         type = "found",
@@ -938,19 +970,13 @@ fun ReportScreen(
                                             .filter { it.isNotEmpty() }
                                             .joinToString(" ")
                                             .takeIf { it.isNotEmpty() },
-                                        photoUrl = "https://images.unsplash.com/photo-1587145820266-a5951ee6f620"
+                                        photoUrl = if (hasPhotoAttached) "https://images.unsplash.com/photo-1587145820266-a5951ee6f620" else "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa"
                                     )
                                 )
                                 isPublishing = false
-                                val createdCode = res.getOrNull()?.code ?: "UAC-NUEVO"
-                                Toast.makeText(
-                                    context,
-                                    "¡Hallazgo #$createdCode publicado exitosamente en UniFind!",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                onBack()
+                                showModerationDialog = true
                             } else {
-                                val res = UniFindRepository.createLostDetailed(
+                                UniFindRepository.createLostDetailed(
                                     CreateLostDetailedRequest(
                                         title = lostTitle.trim(),
                                         type = "lost",
@@ -964,13 +990,7 @@ fun ReportScreen(
                                     )
                                 )
                                 isPublishing = false
-                                val createdCode = res.getOrNull()?.code ?: "UAC-PERDIDO"
-                                Toast.makeText(
-                                    context,
-                                    "¡Reporte #$createdCode publicado! Te avisaremos si llega a Portería.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                                onBack()
+                                showModerationDialog = true
                             }
                         }
                     }
@@ -992,7 +1012,7 @@ fun ReportScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Publicando en UniFind API...",
+                        text = "Enviando a Moderación Previa...",
                         fontFamily = MuseoSansRounded,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
@@ -1001,11 +1021,95 @@ fun ReportScreen(
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isFound) "Publicar Hallazgo Rápido" else "Publicar Reporte de Pérdida",
+                        text = if (isFound) "Enviar Hallazgo a Revisión" else "Enviar Reporte a Revisión",
                         fontFamily = MuseoSansRounded,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+            }
+        }
+    }
+
+    // DIÁLOGO INSTITUCIONAL: BARRERA 3 (MODERACIÓN PREVIA)
+    if (showModerationDialog) {
+        Dialog(
+            onDismissRequest = {
+                showModerationDialog = false
+                onBack()
+            }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = SurfaceWhite,
+                border = BorderStroke(1.dp, CardStroke),
+                shadowElevation = 8.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(YellowLight),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = UniautonomaOrange,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "¡Reporte en Moderación Previa!",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = UniautonomaNavy,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Tu publicación ha sido recibida con éxito y entra en el filtro de seguridad (Barrera 3). Bienestar Universitario y Vigilancia verificarán las fotografías y datos antes de que sea visible en el Feed general.",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 12.sp,
+                        color = UniautonomaTextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 17.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    Button(
+                        onClick = {
+                            showModerationDialog = false
+                            onBack()
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = UniautonomaBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Entendido, ver en Mis Reportes",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SurfaceWhite
+                        )
+                    }
                 }
             }
         }

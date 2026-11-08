@@ -50,7 +50,8 @@ data class ItemDto(
     val timeAgo: String? = null,
     val securityQuestion: String? = null,
     val requiresVerification: Boolean = false,
-    val rewardPoints: Int = 100
+    val rewardPoints: Int = 100,
+    val moderationNotes: String? = null
 ) {
     val displayLocation: String
         get() {
@@ -112,6 +113,13 @@ data class ClaimResponse(
 )
 
 @Serializable
+data class ModerateItemRequest(
+    val action: String,
+    val notes: String? = null,
+    val moderatorId: String? = null
+)
+
+@Serializable
 data class NotifyFoundRequest(
     val action: String, // "LEFT_AT_PORTERIA" o "HAVE_IT_WITH_ME"
     val finderNote: String? = null
@@ -144,6 +152,7 @@ data class UserDto(
     val name: String? = null,
     val institutionalEmail: String = "",
     val studentCode: String = "",
+    val role: String = "student",
     val honorPoints: Int = 200,
     val badges: List<String> = emptyList(),
     val rating: Double = 5.0
@@ -225,4 +234,110 @@ data class ChatMessage(
     val timestamp: String,
     val isMine: Boolean,
     val isVerified: Boolean = false
+)
+
+// =============================================================================
+// DTOs Oficiales Sprint 2 (HU-08, HU-09, HU-10)
+// =============================================================================
+
+@Serializable
+data class HealthResponse(
+    val status: String = "ok",
+    val uptimeSeconds: Double? = null,
+    val timestamp: String? = null
+)
+
+// HU-08: Perfil Integral, Rango de Honor y Estadísticas
+@Serializable
+data class UserProfileData(
+    val user: UserProfileDetails,
+    val stats: UserStats,
+    val recentItems: List<ItemDto> = emptyList()
+)
+
+@Serializable
+data class UserProfileDetails(
+    val id: String,
+    val fullName: String,
+    val institutionalEmail: String,
+    val studentCode: String,
+    val phone: String = "",
+    val avatarUrl: String = "",
+    val reputation: ReputationDetails
+)
+
+@Serializable
+data class ReputationDetails(
+    val rating: Double = 5.0,
+    val returnedCount: Int = 0,
+    val honorPoints: Int = 200,
+    val rank: String = "Guardián Novato", // "Guardián Novato", "Custodio Solidario", "Héroe del Campus"
+    val badges: List<String> = emptyList()
+)
+
+@Serializable
+data class UserStats(
+    val totalReported: Int = 0,
+    val reportedLost: Int = 0,
+    val reportedFound: Int = 0,
+    val returnedSuccess: Int = 0
+)
+
+@Serializable
+data class UpdateProfileRequest(
+    val fullName: String? = null,
+    val phone: String? = null,
+    val avatarUrl: String? = null
+)
+
+// HU-09: Validación y Despacho de Tickets en Portería
+@Serializable
+data class TicketDetailsData(
+    val deliveryToken: String,
+    val isValid: Boolean = true,
+    val isDelivered: Boolean = false,
+    val status: String = "valid",
+    val pickupLocation: String = "Portería Principal • Sede La Casona",
+    val item: TicketItemInfo,
+    val claimant: TicketClaimantInfo,
+    val ownershipProofText: String? = null,
+    val claimedAt: String? = null
+)
+
+@Serializable
+data class TicketItemInfo(
+    val id: String = "",
+    val code: String = "",
+    val title: String = "",
+    val category: String = "",
+    val custodyType: String? = null,
+    val photoUrl: String? = null,
+    val campusLocation: String? = null,
+    val specificArea: String? = null
+)
+
+@Serializable
+data class TicketClaimantInfo(
+    val id: String? = null,
+    val fullName: String,
+    val studentCode: String,
+    val institutionalEmail: String,
+    val phone: String = ""
+)
+
+@Serializable
+data class ConfirmDeliveryRequest(
+    val guardName: String = "Personal de Portería",
+    val guardNotes: String? = null
+)
+
+@Serializable
+data class ConfirmDeliveryResult(
+    val deliveryToken: String,
+    val itemCode: String,
+    val title: String,
+    val status: String = "returned",
+    val deliveredAt: String = "",
+    val handledBy: String = "Personal de Portería",
+    val guardNotes: String? = null
 )

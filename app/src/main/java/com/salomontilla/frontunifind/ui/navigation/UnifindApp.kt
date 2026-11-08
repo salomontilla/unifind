@@ -12,6 +12,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.salomontilla.frontunifind.data.local.SessionManager
+import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.screens.ChatScreen
 import com.salomontilla.frontunifind.ui.screens.DetailScreen
 import com.salomontilla.frontunifind.ui.screens.FeedScreen
@@ -30,7 +32,17 @@ import com.salomontilla.frontunifind.ui.screens.ReportScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnifindApp() {
-    val backStack = remember { mutableStateListOf<Screen>(Screen.Login) }
+    val initialScreen = remember {
+        if (SessionManager.isLoggedIn()) {
+            SessionManager.getUser()?.let { savedUser ->
+                UniFindRepository.currentUser = savedUser
+            }
+            Screen.Feed
+        } else {
+            Screen.Login
+        }
+    }
+    val backStack = remember { mutableStateListOf<Screen>(initialScreen) }
     val currentScreen = backStack.lastOrNull() ?: Screen.Login
 
     var showRatingModal by remember { mutableStateOf(false) }
@@ -125,6 +137,7 @@ fun UnifindApp() {
                         },
                         onNavigateToReport = { navigateTo(Screen.Report) },
                         onLogout = {
+                            SessionManager.clearSession()
                             backStack.clear()
                             backStack.add(Screen.Login)
                         }
