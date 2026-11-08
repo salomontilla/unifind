@@ -78,6 +78,7 @@ import com.salomontilla.frontunifind.R
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.components.InstitutionInfoSheet
 import com.salomontilla.frontunifind.ui.components.InstitutionalTexts
+import com.salomontilla.frontunifind.ui.theme.BlueLight
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
 import com.salomontilla.frontunifind.ui.theme.GreenLight
@@ -92,6 +93,7 @@ import com.salomontilla.frontunifind.ui.theme.UniautonomaNavy
 import com.salomontilla.frontunifind.ui.theme.UniautonomaOrange
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextPrimary
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextSecondary
+import com.salomontilla.frontunifind.ui.theme.YellowLight
 import kotlinx.coroutines.delay
 
 /**
@@ -122,7 +124,7 @@ fun LoginScreen(
     val isEmailValid = normalizedEmail.endsWith("@uniautonoma.edu.co") &&
         normalizedEmail.length > "@uniautonoma.edu.co".length &&
         !normalizedEmail.contains(" ")
-    val isStudentIdValid = studentId.trim().length >= 6 && studentId.trim().all { it.isDigit() || it == '-' }
+    val isStudentIdValid = studentId.trim().length >= 4 && studentId.trim().all { it.isLetterOrDigit() || it == '-' || it == '_' }
 
     LaunchedEffect(isLoading) {
         if (isLoading) {
@@ -145,7 +147,7 @@ fun LoginScreen(
         }
 
         if (!isStudentIdValid) {
-            studentIdError = "Ingresa tu código estudiantil o cédula (mínimo 6 dígitos)"
+            studentIdError = "Ingresa tu código estudiantil o rol (ej. 2023-1001 o GUARD-001)"
             valid = false
         } else {
             studentIdError = null
@@ -496,7 +498,7 @@ fun LoginScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Código estudiantil / Cédula",
+                                text = "Código Estudiantil o Rol",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
@@ -516,12 +518,12 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = studentId,
                             onValueChange = { input ->
-                                studentId = input.filter { it.isDigit() || it == '-' }
+                                studentId = input.uppercase().filter { it.isLetterOrDigit() || it == '-' || it == '_' }
                                 if (studentIdError != null) studentIdError = null
                             },
                             placeholder = {
                                 Text(
-                                    text = "Ej. 202410293",
+                                    text = "Ej. 2023-1001 o GUARD-001",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 13.sp,
                                     color = UniautonomaTextSecondary.copy(alpha = 0.7f)
@@ -530,7 +532,7 @@ fun LoginScreen(
                             leadingIcon = {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_id_card),
-                                    contentDescription = "Código estudiantil o cédula",
+                                    contentDescription = "Código estudiantil o rol",
                                     tint = when {
                                         studentIdError != null -> Color(0xFFDC2626)
                                         studentIdFocused -> UniautonomaBlue
@@ -550,7 +552,7 @@ fun LoginScreen(
                             isError = studentIdError != null,
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
+                                keyboardType = KeyboardType.Ascii,
                                 imeAction = ImeAction.Done
                             ),
                             keyboardActions = KeyboardActions(
@@ -581,6 +583,95 @@ fun LoginScreen(
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFFDC2626)
                             )
+                        }
+
+                        // ACCESO RÁPIDO POR ROL INSTITUCIONAL
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "Acceso Rápido por Rol:",
+                                fontFamily = MuseoSansRounded,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = UniautonomaTextSecondary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                // Rol 1: Estudiante
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (studentId == "2023-1001") UniautonomaNavy else BlueLight)
+                                        .clickable {
+                                            email = "carlos.munoz@uniautonoma.edu.co"
+                                            studentId = "2023-1001"
+                                            emailError = null
+                                            studentIdError = null
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🎓 Estudiante",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (studentId == "2023-1001") SurfaceWhite else UniautonomaBlue
+                                    )
+                                }
+
+                                // Rol 2: Vigilante / Portero
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (studentId == "GUARD-001") UniautonomaOrange else YellowLight)
+                                        .clickable {
+                                            email = "andres.salazar@uniautonoma.edu.co"
+                                            studentId = "GUARD-001"
+                                            emailError = null
+                                            studentIdError = null
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🛡️ Vigilante",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (studentId == "GUARD-001") SurfaceWhite else UniautonomaOrange
+                                    )
+                                }
+
+                                // Rol 3: Administrador
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (studentId == "ADMIN-001") UniautonomaBlue else BlueLight)
+                                        .clickable {
+                                            email = "admin.unifind@uniautonoma.edu.co"
+                                            studentId = "ADMIN-001"
+                                            emailError = null
+                                            studentIdError = null
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🏛️ Admin",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (studentId == "ADMIN-001") SurfaceWhite else UniautonomaBlue
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
