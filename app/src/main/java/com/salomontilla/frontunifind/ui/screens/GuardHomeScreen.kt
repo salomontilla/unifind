@@ -107,6 +107,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun GuardHomeScreen(
     onNavigateToFeed: () -> Unit,
+    onNavigateToProfile: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -324,20 +325,38 @@ fun GuardHomeScreen(
                             }
                         }
 
-                        // Botón Salir / Cerrar Turno
-                        IconButton(
-                            onClick = onLogout,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceWhite.copy(alpha = 0.15f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Cerrar Turno",
-                                tint = SurfaceWhite,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Botón Ver Perfil de Guardia
+                            IconButton(
+                                onClick = onNavigateToProfile,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceWhite.copy(alpha = 0.15f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "Mi Carné de Guardia",
+                                    tint = SurfaceWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Botón Salir / Cerrar Turno
+                            IconButton(
+                                onClick = onLogout,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceWhite.copy(alpha = 0.15f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                    contentDescription = "Cerrar Turno",
+                                    tint = SurfaceWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 

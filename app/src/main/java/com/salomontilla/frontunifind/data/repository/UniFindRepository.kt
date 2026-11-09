@@ -11,6 +11,8 @@ import com.salomontilla.frontunifind.data.model.ConfirmDeliveryResult
 import com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest
 import com.salomontilla.frontunifind.data.model.CreateLostDetailedRequest
 import com.salomontilla.frontunifind.data.model.HealthResponse
+import com.salomontilla.frontunifind.data.model.HotspotDto
+import com.salomontilla.frontunifind.data.model.HotspotsResponse
 import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.LoginRequest
 import com.salomontilla.frontunifind.data.model.ModerateItemRequest
@@ -23,6 +25,7 @@ import com.salomontilla.frontunifind.data.model.TicketClaimantInfo
 import com.salomontilla.frontunifind.data.model.TicketDetailsData
 import com.salomontilla.frontunifind.data.model.TicketItemInfo
 import com.salomontilla.frontunifind.data.model.UpdateStatusRequest
+import com.salomontilla.frontunifind.data.model.UpdateUserRoleRequest
 import com.salomontilla.frontunifind.data.model.UserDto
 import com.salomontilla.frontunifind.data.model.UserProfileData
 import com.salomontilla.frontunifind.data.model.UserProfileDetails
@@ -32,6 +35,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import kotlinx.serialization.json.JsonElement
@@ -178,19 +182,53 @@ object UniFindRepository {
             val rawUser = parseResponse<UserDto>(responseText)
             val normalized = rawUser.copy(
                 id = rawUser.realId,
-                name = rawUser.displayName
+                name = rawUser.displayName,
+                honorPoints = rawUser.effectiveHonorPoints,
+                rating = rawUser.effectiveRating,
+                badges = rawUser.effectiveBadges
             )
             currentUser = normalized
             SessionManager.saveSession(normalized)
             Result.success(normalized)
         } catch (_: Exception) {
+            val fallbackRole = when {
+                code.startsWith("GUARD", ignoreCase = true) || email.contains("vigilancia") || email.contains("salazar") -> "guard"
+                code.startsWith("ADMIN", ignoreCase = true) || email.contains("admin") -> "admin"
+                else -> "student"
+            }
+            val fallbackName = when (fallbackRole) {
+                "guard" -> "Andrés Felipe Salazar (Vigilancia)"
+                "admin" -> "Administrador del Sistema UniFind"
+                else -> "Carlos Andrés Muñoz"
+            }
+            val fallbackId = when (fallbackRole) {
+                "guard" -> "670c1f1e1c9d440000a10003"
+                "admin" -> "670c1f1e1c9d440000a10004"
+                else -> "670c1f1e1c9d440000a10001"
+            }
             val fallback = UserDto(
-                id = "670c1f1e1c9d440000a10001",
-                name = "Carlos Andrés Muñoz",
-                institutionalEmail = email.ifBlank { "carlos.munoz@uniautonoma.edu.co" },
-                studentCode = code.ifBlank { "2023-1001" },
-                honorPoints = currentUser.honorPoints,
-                badges = listOf("Honestidad ejemplar", "Entrega puntual"),
+                id = fallbackId,
+                name = fallbackName,
+                fullName = fallbackName,
+                institutionalEmail = email.ifBlank {
+                    when (fallbackRole) {
+                        "guard" -> "andres.salazar@uniautonoma.edu.co"
+                        "admin" -> "admin.unifind@uniautonoma.edu.co"
+                        else -> "carlos.munoz@uniautonoma.edu.co"
+                    }
+                },
+                studentCode = code.ifBlank {
+                    when (fallbackRole) {
+                        "guard" -> "GUARD-001"
+                        "admin" -> "ADMIN-001"
+                        else -> "2023-1001"
+                    }
+                },
+                role = fallbackRole,
+                honorPoints = if (fallbackRole == "admin") 500 else if (fallbackRole == "guard") 150 else 200,
+                badges = if (fallbackRole == "guard") listOf("Honestidad UAC", "Vigilante Oficial")
+                    else if (fallbackRole == "admin") listOf("Supervisión Campus", "Administrador")
+                    else listOf("Honestidad ejemplar", "Entrega puntual"),
                 rating = 5.0
             )
             currentUser = fallback
@@ -581,7 +619,8 @@ object UniFindRepository {
             val data = parseResponse<UserProfileData>(responseText)
             Result.success(data)
         } catch (_: Exception) {
-            val pts = currentUser.honorPoints
+            val role = currentUser.role
+            val pts = currentUser.effectiveHonorPoints
             val rankName = when {
                 pts >= 300 -> "Héroe del Campus"
                 pts >= 150 -> "Custodio Solidario"
@@ -589,27 +628,30 @@ object UniFindRepository {
             }
             val fallback = UserProfileData(
                 user = UserProfileDetails(
-                    id = currentUser.id.ifBlank { "user-carlos-2023" },
-                    fullName = currentUser.name ?: "Carlos Andrés Muñoz",
+                    id = currentUser.realId,
+                    fullName = currentUser.displayName,
                     institutionalEmail = currentUser.institutionalEmail.ifBlank { "carlos.munoz@uniautonoma.edu.co" },
                     studentCode = currentUser.studentCode.ifBlank { "2023-1001" },
-                    phone = "3104567890",
+                    role = role,
+                    phone = if (role == "guard") "3189012345" else if (role == "admin") "3001234567" else "3104567890",
                     avatarUrl = "https://images.unsplash.com/photo-1534528741775-53994a69daeb",
                     reputation = ReputationDetails(
-                        rating = currentUser.rating,
-                        returnedCount = 3,
+                        rating = currentUser.effectiveRating,
+                        returnedCount = if (role == "admin") 10 else if (role == "guard") 1 else 3,
                         honorPoints = pts,
                         rank = rankName,
-                        badges = currentUser.badges.ifEmpty {
-                            listOf("Honestidad ejemplar", "Entrega puntual", "Guardián del Campus")
+                        badges = currentUser.effectiveBadges.ifEmpty {
+                            if (role == "guard") listOf("Honestidad UAC", "Vigilante Oficial")
+                            else if (role == "admin") listOf("Supervisión Campus", "Administrador")
+                            else listOf("Honestidad ejemplar", "Entrega puntual", "Guardián del Campus")
                         }
                     )
                 ),
                 stats = UserStats(
-                    totalReported = 5,
+                    totalReported = if (role == "admin") 12 else if (role == "guard") 3 else 5,
                     reportedLost = 2,
-                    reportedFound = 3,
-                    returnedSuccess = 3
+                    reportedFound = if (role == "admin") 10 else 3,
+                    returnedSuccess = if (role == "admin") 10 else if (role == "guard") 1 else 3
                 ),
                 recentItems = fallbackItems.take(3)
             )
@@ -757,6 +799,54 @@ object UniFindRepository {
         } catch (_: Exception) {
             val fallback = fallbackItems.filter { it.custodyType == "PORTERIA" }
             Result.success(fallback)
+        }
+    }
+
+    // 21. GET /analytics/hotspots (Zonas Críticas de Pérdidas en el Campus)
+    suspend fun getHotspots(): Result<List<HotspotDto>> {
+        return try {
+            val responseText = client.get("analytics/hotspots").bodyAsText()
+            val hotspots = parseResponse<List<HotspotDto>>(responseText)
+            Result.success(hotspots)
+        } catch (_: Exception) {
+            val fallback = listOf(
+                HotspotDto(campus = "Sede Principal", building = "Biblioteca", totalLostItems = 3, categories = listOf("documents", "tech")),
+                HotspotDto(campus = "Sede Principal", building = "Cafetería Central", totalLostItems = 2, categories = listOf("documents")),
+                HotspotDto(campus = "Sede Principal", building = "Edificio B", totalLostItems = 1, categories = listOf("clothing"))
+            )
+            Result.success(fallback)
+        }
+    }
+
+    // 22. GET /users (Listado Institucional de Usuarios para RBAC)
+    suspend fun getUsers(search: String? = null): Result<List<UserDto>> {
+        return try {
+            val responseText = client.get("users") {
+                if (!search.isNullOrBlank()) parameter("search", search)
+                parameter("limit", 50)
+            }.bodyAsText()
+            val users = parseResponse<List<UserDto>>(responseText)
+            Result.success(users)
+        } catch (_: Exception) {
+            val fallback = listOf(
+                UserDto(id = "670c1f1e1c9d440000a10001", name = "Carlos Andrés Muñoz", fullName = "Carlos Andrés Muñoz", institutionalEmail = "carlos.munoz@uniautonoma.edu.co", studentCode = "2023-1001", role = "student", honorPoints = 200),
+                UserDto(id = "670c1f1e1c9d440000a10002", name = "Valentina Gómez", fullName = "Valentina Gómez Restrepo", institutionalEmail = "valentina.gomez@uniautonoma.edu.co", studentCode = "2022-2045", role = "student", honorPoints = 100),
+                UserDto(id = "670c1f1e1c9d440000a10003", name = "Andrés Salazar (Vigilancia)", fullName = "Andrés Felipe Salazar (Vigilancia)", institutionalEmail = "andres.salazar@uniautonoma.edu.co", studentCode = "GUARD-001", role = "guard", honorPoints = 150),
+                UserDto(id = "670c1f1e1c9d440000a10004", name = "Administrador UniFind", fullName = "Administrador del Sistema UniFind", institutionalEmail = "admin.unifind@uniautonoma.edu.co", studentCode = "ADMIN-001", role = "admin", honorPoints = 500)
+            )
+            Result.success(fallback)
+        }
+    }
+
+    // 23. PUT /users/{id} (Actualización de Rol RBAC por Admin)
+    suspend fun updateUserRole(userId: String, newRole: String): Result<Boolean> {
+        return try {
+            client.put("users/$userId") {
+                setBody(UpdateUserRoleRequest(role = newRole))
+            }
+            Result.success(true)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

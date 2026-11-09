@@ -160,13 +160,17 @@ data class UserDto(
     val role: String = "student",
     val honorPoints: Int = 200,
     val badges: List<String> = emptyList(),
-    val rating: Double = 5.0
+    val rating: Double = 5.0,
+    val reputation: ReputationDetails? = null
 ) {
     val realId: String get() = id.ifBlank { mongoId.orEmpty() }.ifBlank { "670c1f1e1c9d440000a10001" }
     val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: fullName?.takeIf { it.isNotBlank() } ?: "Carlos Muñoz"
-    val isGuard: Boolean get() = role.equals("guard", ignoreCase = true)
-    val isAdmin: Boolean get() = role.equals("admin", ignoreCase = true) || role.equals("superadmin", ignoreCase = true)
+    val isGuard: Boolean get() = role.equals("guard", ignoreCase = true) || studentCode.startsWith("GUARD", ignoreCase = true)
+    val isAdmin: Boolean get() = role.equals("admin", ignoreCase = true) || role.equals("superadmin", ignoreCase = true) || studentCode.startsWith("ADMIN", ignoreCase = true)
     val isStudent: Boolean get() = !isGuard && !isAdmin
+    val effectiveHonorPoints: Int get() = reputation?.honorPoints ?: honorPoints
+    val effectiveRating: Double get() = reputation?.rating ?: rating
+    val effectiveBadges: List<String> get() = reputation?.badges ?: badges
 }
 
 @Serializable
@@ -272,6 +276,7 @@ data class UserProfileDetails(
     val fullName: String,
     val institutionalEmail: String,
     val studentCode: String,
+    val role: String = "student",
     val phone: String = "",
     val avatarUrl: String = "",
     val reputation: ReputationDetails
@@ -352,3 +357,34 @@ data class ConfirmDeliveryResult(
     val handledBy: String = "Personal de Portería",
     val guardNotes: String? = null
 )
+
+// =============================================================================
+// DTOs Oficiales de Administración (RBAC, Hotspots, Auditoría Campus)
+// =============================================================================
+
+@Serializable
+data class HotspotDto(
+    val campus: String = "Sede Principal",
+    val building: String = "",
+    val totalLostItems: Int = 0,
+    val categories: List<String> = emptyList(),
+    val mostRecentIncident: String? = null
+)
+
+@Serializable
+data class HotspotsResponse(
+    val summary: HotspotsSummary? = null,
+    val data: List<HotspotDto> = emptyList()
+)
+
+@Serializable
+data class HotspotsSummary(
+    val totalGlobalLostItems: Int = 0,
+    val hotspotsIdentified: Int = 0
+)
+
+@Serializable
+data class UpdateUserRoleRequest(
+    val role: String
+)
+

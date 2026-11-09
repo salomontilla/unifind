@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -114,6 +115,8 @@ fun ProfileScreen(
     onNavigateToHonor: () -> Unit,
     onNavigateToReport: () -> Unit,
     onNavigateToDetail: (String) -> Unit = {},
+    onNavigateToGuardHome: () -> Unit = {},
+    onNavigateToAdminHome: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val user = UniFindRepository.currentUser
@@ -162,30 +165,57 @@ fun ProfileScreen(
         }
     }
 
-    val displayName = profileData?.user?.fullName ?: (user.name?.takeIf { it.isNotBlank() } ?: "Carlos Muñoz")
+    val effectiveRole = profileData?.user?.role?.takeIf { it.isNotBlank() } ?: user.role
     val displayCode = profileData?.user?.studentCode ?: user.studentCode.ifBlank { "2023-1001" }
-    val displayEmail = profileData?.user?.institutionalEmail ?: user.institutionalEmail.ifBlank { "carlos.munoz@uniautonoma.edu.co" }
-    val displayPoints = profileData?.user?.reputation?.honorPoints ?: user.honorPoints
-    val displayRating = profileData?.user?.reputation?.rating ?: user.rating
-    val displayReturned = profileData?.stats?.returnedSuccess ?: 3
+    val isGuard = effectiveRole.equals("guard", ignoreCase = true) || displayCode.startsWith("GUARD", ignoreCase = true)
+    val isAdmin = effectiveRole.equals("admin", ignoreCase = true) || effectiveRole.equals("superadmin", ignoreCase = true) || displayCode.startsWith("ADMIN", ignoreCase = true)
+    val isStudent = !isGuard && !isAdmin
 
-    val rankName = profileData?.user?.reputation?.rank ?: when {
+    val displayName = profileData?.user?.fullName ?: (user.name?.takeIf { it.isNotBlank() } ?: (if (isGuard) "Andrés Felipe Salazar (Vigilancia)" else if (isAdmin) "Administrador del Sistema UniFind" else "Carlos Muñoz"))
+    val displayEmail = profileData?.user?.institutionalEmail ?: user.institutionalEmail.ifBlank { if (isGuard) "andres.salazar@uniautonoma.edu.co" else if (isAdmin) "admin.unifind@uniautonoma.edu.co" else "carlos.munoz@uniautonoma.edu.co" }
+    val displayPoints = profileData?.user?.reputation?.honorPoints ?: user.effectiveHonorPoints
+    val displayRating = profileData?.user?.reputation?.rating ?: user.effectiveRating
+    val displayReturned = profileData?.stats?.returnedSuccess ?: (if (isAdmin) 10 else if (isGuard) 1 else 3)
+
+    val cardTitle = when {
+        isGuard -> "Carné de Seguridad y Custodia"
+        isAdmin -> "Credencial Administrativa UAC"
+        else -> "Carné Digital Estudiantil"
+    }
+
+    val departmentText = when {
+        isGuard -> "Personal de Vigilancia y Portería • Sede Popayán La Casona"
+        isAdmin -> "Dirección de Bienestar y Tecnologías • Sede Principal"
+        else -> "Ingeniería de Sistemas • Sede Popayán La Casona"
+    }
+
+    val roleBadgeText = when {
+        isGuard -> "Vigilancia / Portería"
+        isAdmin -> "Administrador UAC"
+        else -> "Estudiante Activo"
+    }
+
+    val rankName = when {
+        isGuard -> "Oficial de Custodia"
+        isAdmin -> "Auditor & Moderador Global"
         displayPoints >= 300 -> "Héroe del Campus"
         displayPoints >= 150 -> "Custodio Solidario"
         else -> "Guardián Novato"
     }
 
-    val rankColor = when (rankName) {
-        "Héroe del Campus" -> UniautonomaOrange
-        "Custodio Solidario" -> GreenSuccess
+    val rankColor = when {
+        isAdmin -> UniautonomaBlue
+        isGuard -> UniautonomaOrange
+        rankName == "Héroe del Campus" -> UniautonomaOrange
+        rankName == "Custodio Solidario" -> GreenSuccess
         else -> UniautonomaBlueLight
     }
 
-    val defaultBadges = listOf(
-        "Honestidad ejemplar",
-        "Entrega puntual",
-        "Guardián del Campus"
-    )
+    val defaultBadges = when {
+        isGuard -> listOf("Honestidad UAC", "Vigilante Oficial", "Custodio del Campus")
+        isAdmin -> listOf("Supervisión Campus", "Administrador", "Auditoría Global")
+        else -> listOf("Honestidad ejemplar", "Entrega puntual", "Guardián del Campus")
+    }
     val badgesList = profileData?.user?.reputation?.badges?.ifEmpty { defaultBadges } ?: defaultBadges
 
     Box(
@@ -253,16 +283,13 @@ fun ProfileScreen(
                                     )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Carné Digital Estudiantil",
+                                    text = cardTitle,
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = SurfaceWhite
                                 )
                             }
-
-                            val isGuard = user.role.equals("guard", ignoreCase = true) || displayCode.startsWith("GUARD")
-                            val isAdmin = user.role.equals("admin", ignoreCase = true) || user.role.equals("superadmin", ignoreCase = true)
 
                             Row(
                                 modifier = Modifier
@@ -279,7 +306,7 @@ fun ProfileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (isGuard) "Vigilancia / Portería" else if (isAdmin) "Administrador UAC" else "Estudiante Activo",
+                                    text = roleBadgeText,
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -336,7 +363,7 @@ fun ProfileScreen(
                                 .padding(horizontal = 14.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = "Ingeniería de Sistemas • Sede Popayán La Casona",
+                                text = departmentText,
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
@@ -346,7 +373,7 @@ fun ProfileScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // HU-08: Rango Cívico Institucional
+                        // HU-08: Rango Cívico Institucional / Nivel Operativo
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50.dp))
@@ -356,14 +383,14 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.EmojiEvents,
+                                imageVector = if (isGuard || isAdmin) Icons.Default.Security else Icons.Default.EmojiEvents,
                                 contentDescription = null,
                                 tint = rankColor,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Rango Cívico: $rankName",
+                                text = if (isGuard || isAdmin) rankName else "Rango Cívico: $rankName",
                                 fontFamily = MuseoSansRounded,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -460,7 +487,7 @@ fun ProfileScreen(
                             .padding(horizontal = 18.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Columna 1: Puntos de Honor
+                        // Columna 1: Puntos de Honor / Nivel
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(18.dp),
@@ -481,7 +508,7 @@ fun ProfileScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.EmojiEvents,
+                                        imageVector = if (isGuard || isAdmin) Icons.Default.Security else Icons.Default.EmojiEvents,
                                         contentDescription = null,
                                         tint = UniautonomaOrange,
                                         modifier = Modifier.size(18.dp)
@@ -489,14 +516,14 @@ fun ProfileScreen(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "$displayPoints Pts",
+                                    text = if (isGuard) "Oficial" else if (isAdmin) "500 Pts" else "$displayPoints Pts",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = UniautonomaNavy
                                 )
                                 Text(
-                                    text = "Honor",
+                                    text = if (isGuard) "Seguridad" else if (isAdmin) "Supervisión" else "Honor",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 11.sp,
                                     color = UniautonomaTextSecondary
@@ -504,7 +531,7 @@ fun ProfileScreen(
                             }
                         }
 
-                        // Columna 2: Objetos Devueltos
+                        // Columna 2: Objetos Devueltos / En Custodia / Auditados
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(18.dp),
@@ -533,14 +560,14 @@ fun ProfileScreen(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "$displayReturned",
+                                    text = if (isGuard) "${profileData?.stats?.totalReported ?: 3}" else if (isAdmin) "${profileData?.stats?.totalReported ?: 12}" else "$displayReturned",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = UniautonomaNavy
                                 )
                                 Text(
-                                    text = "Devueltos",
+                                    text = if (isGuard) "En Custodia" else if (isAdmin) "Auditados" else "Devueltos",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 11.sp,
                                     color = UniautonomaTextSecondary
@@ -548,7 +575,7 @@ fun ProfileScreen(
                             }
                         }
 
-                        // Columna 3: Calificación
+                        // Columna 3: Calificación / Operatividad
                         Surface(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(18.dp),
@@ -577,14 +604,14 @@ fun ProfileScreen(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "$displayRating ★",
+                                    text = if (isGuard) "5.0 ★" else if (isAdmin) "100%" else "$displayRating ★",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = UniautonomaNavy
                                 )
                                 Text(
-                                    text = "Reputación",
+                                    text = if (isGuard) "Operatividad" else if (isAdmin) "Disponibilidad" else "Reputación",
                                     fontFamily = MuseoSansRounded,
                                     fontSize = 11.sp,
                                     color = UniautonomaTextSecondary
@@ -758,47 +785,133 @@ fun ProfileScreen(
                             HorizontalDivider(color = DividerStroke, thickness = 1.dp)
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // HU-09: Acceso directo a Consola de Portería
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(BlueLight)
-                                    .clickable { showPorteriaConsole = true }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            // Acceso especializado según RBAC
+                            if (isGuard) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(YellowLight)
+                                        .clickable { onNavigateToGuardHome() }
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = null,
+                                            tint = UniautonomaOrange,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = "Consola de Vigilancia y Portería",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = UniautonomaNavy
+                                            )
+                                            Text(
+                                                text = "Despacho de tickets, moderación e inventario",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 11.sp,
+                                                color = UniautonomaTextSecondary
+                                            )
+                                        }
+                                    }
                                     Icon(
-                                        imageVector = Icons.Default.ConfirmationNumber,
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                         contentDescription = null,
                                         tint = UniautonomaOrange,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = "Consola de Portería (HU-09)",
-                                            fontFamily = MuseoSansRounded,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = UniautonomaNavy
-                                        )
-                                        Text(
-                                            text = "Validar y despachar tickets TICKET-XXXX-RET",
-                                            fontFamily = MuseoSansRounded,
-                                            fontSize = 11.sp,
-                                            color = UniautonomaTextSecondary
-                                        )
-                                    }
                                 }
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = null,
-                                    tint = UniautonomaOrange,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                            } else if (isAdmin) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(BlueLight)
+                                        .clickable { onNavigateToAdminHome() }
+                                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = null,
+                                            tint = UniautonomaBlue,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = "Consola Administrativa del Campus",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = UniautonomaNavy
+                                            )
+                                            Text(
+                                                text = "Hotspots de pérdidas, Barrera 3 y roles RBAC",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 11.sp,
+                                                color = UniautonomaTextSecondary
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = UniautonomaBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(BlueLight)
+                                        .clickable { showPorteriaConsole = true }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.ConfirmationNumber,
+                                            contentDescription = null,
+                                            tint = UniautonomaOrange,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = "Consola de Portería (HU-09)",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = UniautonomaNavy
+                                            )
+                                            Text(
+                                                text = "Validar y despachar tickets TICKET-XXXX-RET",
+                                                fontFamily = MuseoSansRounded,
+                                                fontSize = 11.sp,
+                                                color = UniautonomaTextSecondary
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = UniautonomaOrange,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
@@ -1169,18 +1282,90 @@ fun ProfileScreen(
             }
         }
 
-        UnifindBottomBar(
-            currentRoute = "profile",
-            onNavigate = { route ->
-                when (route) {
-                    "feed" -> onNavigateToFeed()
-                    "messages" -> onNavigateToMessages()
-                    "honor" -> onNavigateToHonor()
-                    "report" -> onNavigateToReport()
+        if (isGuard) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = UniautonomaNavy,
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToGuardHome() }
+                        .padding(vertical = 14.dp, horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = UniautonomaOrange,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Volver a Consola de Vigilancia",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = SurfaceWhite
+                    )
                 }
-            },
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            }
+        } else if (isAdmin) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = UniautonomaNavy,
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToAdminHome() }
+                        .padding(vertical = 14.dp, horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = UniautonomaBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Volver a Panel de Administrador",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = SurfaceWhite
+                    )
+                }
+            }
+        } else {
+            UnifindBottomBar(
+                currentRoute = "profile",
+                onNavigate = { route ->
+                    when (route) {
+                        "feed" -> onNavigateToFeed()
+                        "messages" -> onNavigateToMessages()
+                        "honor" -> onNavigateToHonor()
+                        "report" -> onNavigateToReport()
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
 
         // ModalBottomSheet Institucional
         when (activeInfoSheet) {

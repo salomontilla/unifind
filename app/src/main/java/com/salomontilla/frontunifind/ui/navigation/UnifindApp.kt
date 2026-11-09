@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.salomontilla.frontunifind.data.local.SessionManager
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
+import com.salomontilla.frontunifind.ui.screens.AdminHomeScreen
 import com.salomontilla.frontunifind.ui.screens.ChatScreen
 import com.salomontilla.frontunifind.ui.screens.DetailScreen
 import com.salomontilla.frontunifind.ui.screens.FeedScreen
@@ -38,7 +39,11 @@ fun UnifindApp() {
             val savedUser = SessionManager.getUser()
             if (savedUser != null) {
                 UniFindRepository.currentUser = savedUser
-                if (savedUser.isGuard) Screen.GuardHome else Screen.Feed
+                when {
+                    savedUser.isGuard -> Screen.GuardHome
+                    savedUser.isAdmin -> Screen.AdminHome
+                    else -> Screen.Feed
+                }
             } else {
                 Screen.Feed
             }
@@ -76,11 +81,18 @@ fun UnifindApp() {
                         onNavigateToHonor = { navigateTo(Screen.Honor) },
                         onNavigateToLogin = {
                             val user = SessionManager.getUser() ?: UniFindRepository.currentUser
-                            if (user.isGuard) {
-                                backStack.clear()
-                                backStack.add(Screen.GuardHome)
-                            } else {
-                                navigateTo(Screen.Profile())
+                            when {
+                                user.isGuard -> {
+                                    backStack.clear()
+                                    backStack.add(Screen.GuardHome)
+                                }
+                                user.isAdmin -> {
+                                    backStack.clear()
+                                    backStack.add(Screen.AdminHome)
+                                }
+                                else -> {
+                                    navigateTo(Screen.Profile())
+                                }
                             }
                         },
                         onShowHonorModal = { showRatingModal = true }
@@ -153,6 +165,14 @@ fun UnifindApp() {
                         },
                         onNavigateToReport = { navigateTo(Screen.Report) },
                         onNavigateToDetail = { code -> navigateTo(Screen.Detail(code)) },
+                        onNavigateToGuardHome = {
+                            backStack.clear()
+                            backStack.add(Screen.GuardHome)
+                        },
+                        onNavigateToAdminHome = {
+                            backStack.clear()
+                            backStack.add(Screen.AdminHome)
+                        },
                         onLogout = {
                             SessionManager.clearSession()
                             backStack.clear()
@@ -172,6 +192,18 @@ fun UnifindApp() {
                 is Screen.GuardHome -> {
                     GuardHomeScreen(
                         onNavigateToFeed = { navigateTo(Screen.Feed) },
+                        onNavigateToProfile = { navigateTo(Screen.Profile()) },
+                        onLogout = {
+                            SessionManager.clearSession()
+                            backStack.clear()
+                            backStack.add(Screen.Login)
+                        }
+                    )
+                }
+
+                is Screen.AdminHome -> {
+                    AdminHomeScreen(
+                        onNavigateToFeed = { navigateTo(Screen.Feed) },
                         onLogout = {
                             SessionManager.clearSession()
                             backStack.clear()
@@ -185,10 +217,10 @@ fun UnifindApp() {
                         onLoginSuccess = {
                             backStack.clear()
                             val user = SessionManager.getUser() ?: UniFindRepository.currentUser
-                            if (user.isGuard) {
-                                backStack.add(Screen.GuardHome)
-                            } else {
-                                backStack.add(Screen.Feed)
+                            when {
+                                user.isGuard -> backStack.add(Screen.GuardHome)
+                                user.isAdmin -> backStack.add(Screen.AdminHome)
+                                else -> backStack.add(Screen.Feed)
                             }
                         }
                     )
