@@ -70,6 +70,9 @@ import com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest
 import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.TicketDetailsData
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
+import com.salomontilla.frontunifind.ui.components.GuardInventoryCardSkeleton
+import com.salomontilla.frontunifind.ui.components.GuardModerationCardSkeleton
+import com.salomontilla.frontunifind.ui.components.rememberShimmerBrush
 import com.salomontilla.frontunifind.ui.theme.BlueLight
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
@@ -108,6 +111,7 @@ fun GuardHomeScreen(
 ) {
     val scope = rememberCoroutineScope()
     val guardUser = UniFindRepository.currentUser
+    val shimmerBrush = rememberShimmerBrush()
 
     // 0 = Despacho (Tickets), 1 = Moderación (Barrera 3), 2 = Inventario Portería
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -989,7 +993,11 @@ fun GuardHomeScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (pendingItems.isEmpty()) {
+                        if (isLoadingPending) {
+                            repeat(2) {
+                                GuardModerationCardSkeleton(brush = shimmerBrush)
+                            }
+                        } else if (pendingItems.isEmpty()) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(18.dp),
@@ -1222,7 +1230,11 @@ fun GuardHomeScreen(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (custodyItems.isEmpty()) {
+                        if (isLoadingInventory) {
+                            repeat(3) {
+                                GuardInventoryCardSkeleton(brush = shimmerBrush)
+                            }
+                        } else if (custodyItems.isEmpty()) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),

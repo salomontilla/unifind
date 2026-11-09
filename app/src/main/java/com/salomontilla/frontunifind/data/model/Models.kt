@@ -1,5 +1,6 @@
 package com.salomontilla.frontunifind.data.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 enum class ReportStatus {
@@ -79,7 +80,8 @@ data class CreateFoundExpressRequest(
     val campusZone: String,
     val locationReference: String? = null,
     val brandAndColor: String? = null,
-    val photoUrl: String
+    val photoUrl: String,
+    val postedBy: String? = null
 )
 
 @Serializable
@@ -91,7 +93,8 @@ data class CreateLostDetailedRequest(
     val brandAndColor: String? = null,
     val campusZone: String? = null,
     val locationReference: String? = null,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val postedBy: String? = null
 )
 
 @Serializable
@@ -148,8 +151,10 @@ data class LoginRequest(
 
 @Serializable
 data class UserDto(
+    @SerialName("_id") val mongoId: String? = null,
     val id: String = "",
     val name: String? = null,
+    val fullName: String? = null,
     val institutionalEmail: String = "",
     val studentCode: String = "",
     val role: String = "student",
@@ -157,6 +162,8 @@ data class UserDto(
     val badges: List<String> = emptyList(),
     val rating: Double = 5.0
 ) {
+    val realId: String get() = id.ifBlank { mongoId.orEmpty() }.ifBlank { "670c1f1e1c9d440000a10001" }
+    val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: fullName?.takeIf { it.isNotBlank() } ?: "Carlos Muñoz"
     val isGuard: Boolean get() = role.equals("guard", ignoreCase = true)
     val isAdmin: Boolean get() = role.equals("admin", ignoreCase = true) || role.equals("superadmin", ignoreCase = true)
     val isStudent: Boolean get() = !isGuard && !isAdmin

@@ -7,7 +7,7 @@ sealed class Screen(val route: String) {
     object Report : Screen("report")
     object Messages : Screen("messages")
     object Honor : Screen("honor")
-    object Profile : Screen("profile")
+    data class Profile(val initialTab: Int = 0) : Screen("profile")
     data class Detail(val itemId: String = "UAC-8841") : Screen("detail/{itemId}") {
         companion object {
             const val ROUTE = "detail/{itemId}"

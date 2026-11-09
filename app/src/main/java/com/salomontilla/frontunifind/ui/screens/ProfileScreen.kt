@@ -78,7 +78,9 @@ import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.components.GuardTicketConsoleSheet
 import com.salomontilla.frontunifind.ui.components.InstitutionInfoSheet
 import com.salomontilla.frontunifind.ui.components.InstitutionalTexts
+import com.salomontilla.frontunifind.ui.components.MyReportCardSkeleton
 import com.salomontilla.frontunifind.ui.components.UnifindBottomBar
+import com.salomontilla.frontunifind.ui.components.rememberShimmerBrush
 import com.salomontilla.frontunifind.ui.theme.BlueLight
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
@@ -106,19 +108,22 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun ProfileScreen(
+    initialTab: Int = 0,
     onNavigateToFeed: () -> Unit,
     onNavigateToMessages: () -> Unit,
     onNavigateToHonor: () -> Unit,
     onNavigateToReport: () -> Unit,
+    onNavigateToDetail: (String) -> Unit = {},
     onLogout: () -> Unit
 ) {
     val user = UniFindRepository.currentUser
     val scope = rememberCoroutineScope()
+    val shimmerBrush = rememberShimmerBrush()
 
     var profileData by remember { mutableStateOf<UserProfileData?>(null) }
     var isLoadingProfile by remember { mutableStateOf(true) }
     var serverHealth by remember { mutableStateOf<HealthResponse?>(null) }
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = Mi Reputación, 1 = Mis Reportes
+    var selectedTab by remember { mutableIntStateOf(initialTab) } // 0 = Mi Reputación, 1 = Mis Reportes
     var myItems by remember { mutableStateOf<List<ItemDto>>(emptyList()) }
     var isLoadingItems by remember { mutableStateOf(false) }
 
@@ -128,7 +133,7 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         scope.launch {
-            UniFindRepository.getUserProfile(user.id).onSuccess { data ->
+            UniFindRepository.getUserProfile(user.realId).onSuccess { data ->
                 profileData = data
             }
             isLoadingProfile = false
@@ -140,7 +145,17 @@ fun ProfileScreen(
         }
         scope.launch {
             isLoadingItems = true
-            UniFindRepository.getUserItems(user.id).onSuccess { items ->
+            UniFindRepository.getUserItems(user.realId).onSuccess { items ->
+                myItems = items
+            }
+            isLoadingItems = false
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 1) {
+            isLoadingItems = true
+            UniFindRepository.getUserItems(user.realId).onSuccess { items ->
                 myItems = items
             }
             isLoadingItems = false
@@ -962,7 +977,16 @@ fun ProfileScreen(
                     }
                 }
 
-                if (myItems.isEmpty()) {
+                if (isLoadingItems) {
+                    item {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            repeat(3) {
+                                MyReportCardSkeleton(brush = shimmerBrush)
+                            }
+                        }
+                    }
+                } else if (myItems.isEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(30.dp))
                         Column(
@@ -1010,7 +1034,8 @@ fun ProfileScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 18.dp),
+                                .padding(horizontal = 18.dp)
+                                .clickable { onNavigateToDetail(itemDto.code) },
                             shape = RoundedCornerShape(16.dp),
                             color = SurfaceWhite,
                             border = BorderStroke(1.dp, CardStroke),
@@ -1181,8 +1206,8 @@ fun ProfileScreen(
                 onDismiss = { showPorteriaConsole = false },
                 onDeliveryCompleted = {
                     scope.launch {
-                        UniFindRepository.getUserProfile(user.id).onSuccess { profileData = it }
-                        UniFindRepository.getUserItems(user.id).onSuccess { myItems = it }
+                        UniFindRepository.getUserProfile(user.realId).onSuccess { profileData = it }
+                        UniFindRepository.getUserItems(user.realId).onSuccess { myItems = it }
                     }
                 }
             )

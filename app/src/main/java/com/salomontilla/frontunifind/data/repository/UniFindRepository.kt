@@ -175,14 +175,18 @@ object UniFindRepository {
             val responseText = client.post("auth/login") {
                 setBody(LoginRequest(institutionalEmail = email, studentCode = code))
             }.bodyAsText()
-            val user = parseResponse<UserDto>(responseText)
-            currentUser = user
-            SessionManager.saveSession(user)
-            Result.success(user)
+            val rawUser = parseResponse<UserDto>(responseText)
+            val normalized = rawUser.copy(
+                id = rawUser.realId,
+                name = rawUser.displayName
+            )
+            currentUser = normalized
+            SessionManager.saveSession(normalized)
+            Result.success(normalized)
         } catch (_: Exception) {
             val fallback = UserDto(
-                id = "user-carlos-2023",
-                name = "Carlos Muñoz",
+                id = "670c1f1e1c9d440000a10001",
+                name = "Carlos Andrés Muñoz",
                 institutionalEmail = email.ifBlank { "carlos.munoz@uniautonoma.edu.co" },
                 studentCode = code.ifBlank { "2023-1001" },
                 honorPoints = currentUser.honorPoints,
@@ -264,21 +268,23 @@ object UniFindRepository {
 
     // 4. POST /items (Modo Exprés Encontrado / Portería)
     suspend fun createFoundExpress(req: CreateFoundExpressRequest): Result<ItemDto> {
+        val payload = if (req.postedBy.isNullOrBlank()) req.copy(postedBy = currentUser.realId) else req
         return try {
             val responseText = client.post("items") {
-                setBody(req)
+                setBody(payload)
             }.bodyAsText()
             val created = parseResponse<ItemDto>(responseText)
             val normalized = if (created.code.isBlank()) {
                 created.copy(
                     code = "UAC-${(1000..9999).random()}",
-                    title = req.title,
+                    title = payload.title,
                     type = "found",
-                    category = req.category,
-                    custodyType = req.custodyType,
-                    campusLocation = req.campusZone,
-                    roomReference = req.locationReference ?: "Sede Principal",
-                    brandAndColor = req.brandAndColor,
+                    status = "pending_review",
+                    category = payload.category,
+                    custodyType = payload.custodyType,
+                    campusLocation = payload.campusZone,
+                    roomReference = payload.locationReference ?: "Sede Principal",
+                    brandAndColor = payload.brandAndColor,
                     timeAgo = "Hace un momento"
                 )
             } else created
@@ -289,24 +295,25 @@ object UniFindRepository {
             val created = ItemDto(
                 id = "item-$newCode",
                 code = newCode,
-                title = req.title,
+                title = payload.title,
                 type = "found",
-                status = "active",
-                category = req.category,
-                description = if (req.custodyType == "PORTERIA") {
-                    "Reportado mediante Modo Exprés y dejado en custodia de Portería (${req.campusZone})."
+                status = "pending_review",
+                category = payload.category,
+                description = if (payload.custodyType == "PORTERIA") {
+                    "Reportado mediante Modo Exprés y dejado en custodia de Portería (${payload.campusZone})."
                 } else {
-                    "Reportado mediante Modo Exprés en ${req.campusZone}. Custodia personal para entrega en Punto Seguro."
+                    "Reportado mediante Modo Exprés en ${payload.campusZone}. Custodia personal para entrega en Punto Seguro."
                 },
-                custodyType = req.custodyType,
-                brandAndColor = req.brandAndColor,
-                photoUrl = req.photoUrl,
-                campusLocation = req.campusZone,
-                roomReference = req.locationReference ?: "Sede La Casona",
+                custodyType = payload.custodyType,
+                brandAndColor = payload.brandAndColor,
+                photoUrl = payload.photoUrl,
+                campusLocation = payload.campusZone,
+                roomReference = payload.locationReference ?: "Sede La Casona",
                 timeAgo = "Hace un momento",
                 securityQuestion = "¿Qué señas particulares o marca tiene el objeto?",
                 requiresVerification = true,
-                rewardPoints = 100
+                rewardPoints = 100,
+                moderationNotes = "En revisión previa por Vigilancia (Barrera 3)"
             )
             fallbackItems.add(0, created)
             Result.success(created)
@@ -315,21 +322,23 @@ object UniFindRepository {
 
     // 5. POST /items (Modo Detallado Objeto Perdido)
     suspend fun createLostDetailed(req: CreateLostDetailedRequest): Result<ItemDto> {
+        val payload = if (req.postedBy.isNullOrBlank()) req.copy(postedBy = currentUser.realId) else req
         return try {
             val responseText = client.post("items") {
-                setBody(req)
+                setBody(payload)
             }.bodyAsText()
             val created = parseResponse<ItemDto>(responseText)
             val normalized = if (created.code.isBlank()) {
                 created.copy(
                     code = "UAC-${(1000..9999).random()}",
-                    title = req.title,
+                    title = payload.title,
                     type = "lost",
-                    category = req.category,
-                    distinguishingMarks = req.distinguishingMarks,
-                    brandAndColor = req.brandAndColor,
-                    campusLocation = req.campusZone ?: "Campus Principal",
-                    roomReference = req.locationReference ?: "Sede La Casona",
+                    status = "pending_review",
+                    category = payload.category,
+                    distinguishingMarks = payload.distinguishingMarks,
+                    brandAndColor = payload.brandAndColor,
+                    campusLocation = payload.campusZone ?: "Campus Principal",
+                    roomReference = payload.locationReference ?: "Sede La Casona",
                     timeAgo = "Hace un momento"
                 )
             } else created
@@ -340,19 +349,21 @@ object UniFindRepository {
             val created = ItemDto(
                 id = "item-$newCode",
                 code = newCode,
-                title = req.title,
+                title = payload.title,
                 type = "lost",
-                status = "active",
-                category = req.category,
-                description = req.distinguishingMarks,
-                distinguishingMarks = req.distinguishingMarks,
-                brandAndColor = req.brandAndColor,
-                photoUrl = req.photoUrl,
-                campusLocation = req.campusZone ?: "Campus Principal",
-                roomReference = req.locationReference ?: "Sede La Casona",
+                status = "pending_review",
+                category = payload.category,
+                description = payload.distinguishingMarks,
+                distinguishingMarks = payload.distinguishingMarks,
+                brandAndColor = payload.brandAndColor,
+                photoUrl = payload.photoUrl,
+                campusLocation = payload.campusZone ?: "Campus Principal",
+                roomReference = payload.locationReference ?: "Sede La Casona",
                 timeAgo = "Hace un momento",
+                securityQuestion = null,
                 requiresVerification = false,
-                rewardPoints = 100
+                rewardPoints = 100,
+                moderationNotes = "En revisión previa por Bienestar Universitario (Barrera 3)"
             )
             fallbackItems.add(0, created)
             Result.success(created)
@@ -608,12 +619,19 @@ object UniFindRepository {
 
     // 15. GET /users/{id}/items (HU-08: Mis Reportes)
     suspend fun getUserItems(
-        userId: String = currentUser.id,
+        userId: String = currentUser.realId,
         status: String? = null,
         type: String? = null
     ): Result<List<ItemDto>> {
+        val targetId = when {
+            userId.isNotBlank() && !userId.startsWith("user-") -> userId
+            currentUser.realId.isNotBlank() && !currentUser.realId.startsWith("user-") -> currentUser.realId
+            currentUser.studentCode.isNotBlank() -> currentUser.studentCode
+            currentUser.institutionalEmail.isNotBlank() -> currentUser.institutionalEmail
+            else -> "2023-1001"
+        }
         return try {
-            val responseText = client.get("users/$userId/items") {
+            val responseText = client.get("users/$targetId/items") {
                 if (!status.isNullOrBlank()) parameter("status", status)
                 if (!type.isNullOrBlank()) parameter("type", type)
             }.bodyAsText()

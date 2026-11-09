@@ -95,7 +95,8 @@ import com.salomontilla.frontunifind.ui.theme.YellowLight
  */
 @Composable
 fun ReportScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onNavigateToProfileTab: (Int) -> Unit = {}
 ) {
     var isFound by remember { mutableStateOf(true) }
 
@@ -1094,7 +1095,7 @@ fun ReportScreen(
                     Button(
                         onClick = {
                             showModerationDialog = false
-                            onBack()
+                            onNavigateToProfileTab(1)
                         },
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = UniautonomaBlue),

@@ -72,6 +72,8 @@ import com.salomontilla.frontunifind.data.model.ClaimResponse
 import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.NotifyFoundRequest
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
+import com.salomontilla.frontunifind.ui.components.DetailScreenSkeleton
+import com.salomontilla.frontunifind.ui.components.rememberShimmerBrush
 import com.salomontilla.frontunifind.ui.theme.BlueLight
 import com.salomontilla.frontunifind.ui.theme.CardStroke
 import com.salomontilla.frontunifind.ui.theme.DividerStroke
@@ -105,6 +107,7 @@ fun DetailScreen(
     onNavigateToChat: (String) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val shimmerBrush = rememberShimmerBrush()
 
     var currentItem by remember { mutableStateOf<ItemDto?>(null) }
     var isLoadingItem by remember { mutableStateOf(true) }
@@ -304,10 +307,9 @@ fun DetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
+                    .padding(paddingValues)
             ) {
-                CircularProgressIndicator(color = UniautonomaBlue)
+                DetailScreenSkeleton(brush = shimmerBrush)
             }
         } else {
             Column(

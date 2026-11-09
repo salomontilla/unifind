@@ -42,9 +42,9 @@ object SessionManager {
         val p = prefs ?: return
         p.edit().apply {
             putBoolean(KEY_IS_LOGGED_IN, true)
-            putString(KEY_USER_ID, user.id)
+            putString(KEY_USER_ID, user.realId)
             putString(KEY_USER_EMAIL, user.institutionalEmail)
-            putString(KEY_USER_NAME, user.name)
+            putString(KEY_USER_NAME, user.displayName)
             putString(KEY_STUDENT_CODE, user.studentCode)
             putString(KEY_USER_ROLE, user.role)
             putInt(KEY_HONOR_POINTS, user.honorPoints)
@@ -71,11 +71,18 @@ object SessionManager {
         val role = p.getString(KEY_USER_ROLE, "student") ?: "student"
         val points = p.getInt(KEY_HONOR_POINTS, 200)
 
+        val resolvedId = when {
+            id.isNotBlank() && !id.startsWith("user-") -> id
+            code == "GUARD-001" -> "670c1f1e1c9d440000a10003"
+            code == "ADMIN-001" -> "670c1f1e1c9d440000a10004"
+            else -> "670c1f1e1c9d440000a10001"
+        }
+
         return UserDto(
-            id = id,
-            name = name,
-            institutionalEmail = email,
-            studentCode = code,
+            id = resolvedId,
+            name = name ?: "Carlos Andrés Muñoz",
+            institutionalEmail = email.ifBlank { "carlos.munoz@uniautonoma.edu.co" },
+            studentCode = code.ifBlank { "2023-1001" },
             role = role,
             honorPoints = points
         )

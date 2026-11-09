@@ -80,7 +80,7 @@ fun UnifindApp() {
                                 backStack.clear()
                                 backStack.add(Screen.GuardHome)
                             } else {
-                                navigateTo(Screen.Profile)
+                                navigateTo(Screen.Profile())
                             }
                         },
                         onShowHonorModal = { showRatingModal = true }
@@ -97,7 +97,10 @@ fun UnifindApp() {
 
                 is Screen.Report -> {
                     ReportScreen(
-                        onBack = { navigateBack() }
+                        onBack = { navigateBack() },
+                        onNavigateToProfileTab = { tab ->
+                            navigateTo(Screen.Profile(initialTab = tab))
+                        }
                     )
                 }
 
@@ -111,7 +114,7 @@ fun UnifindApp() {
                         onNavigateToHonor = { navigateTo(Screen.Honor) },
                         onNavigateToChat = { chatId -> navigateTo(Screen.Chat(chatId)) },
                         onShowHonorModal = { showRatingModal = true },
-                        onNavigateToLogin = { navigateTo(Screen.Profile) }
+                        onNavigateToLogin = { navigateTo(Screen.Profile()) }
                     )
                 }
 
@@ -127,12 +130,13 @@ fun UnifindApp() {
                             backStack.add(Screen.Messages)
                         },
                         onNavigateToReport = { navigateTo(Screen.Report) },
-                        onNavigateToLogin = { navigateTo(Screen.Profile) }
+                        onNavigateToLogin = { navigateTo(Screen.Profile()) }
                     )
                 }
 
                 is Screen.Profile -> {
                     ProfileScreen(
+                        initialTab = screen.initialTab,
                         onNavigateToFeed = {
                             backStack.clear()
                             backStack.add(Screen.Feed)
@@ -148,6 +152,7 @@ fun UnifindApp() {
                             backStack.add(Screen.Honor)
                         },
                         onNavigateToReport = { navigateTo(Screen.Report) },
+                        onNavigateToDetail = { code -> navigateTo(Screen.Detail(code)) },
                         onLogout = {
                             SessionManager.clearSession()
                             backStack.clear()
