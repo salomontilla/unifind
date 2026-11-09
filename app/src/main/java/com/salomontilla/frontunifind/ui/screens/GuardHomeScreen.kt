@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ConfirmationNumber
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
@@ -143,11 +144,16 @@ fun GuardHomeScreen(
     // Función para refrescar datos operativos
     fun refreshData() {
         scope.launch {
+            isLoadingPending = true
             val pendingRes = UniFindRepository.getPendingModerationItems()
             pendingItems = pendingRes.getOrDefault(emptyList())
-
+            isLoadingPending = false
+        }
+        scope.launch {
+            isLoadingInventory = true
             val custodyRes = UniFindRepository.getPorteriaInventory()
             custodyItems = custodyRes.getOrDefault(emptyList())
+            isLoadingInventory = false
         }
     }
 
@@ -962,6 +968,33 @@ fun GuardHomeScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 18.dp)
                     ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Reportes en Espera (${pendingItems.size})",
+                                fontFamily = MuseoSansRounded,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = UniautonomaTextPrimary
+                            )
+                            IconButton(
+                                onClick = { refreshData() },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Actualizar pendientes",
+                                    tint = UniautonomaBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
                         // Banner Explicativo de Seguridad
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -1144,7 +1177,8 @@ fun GuardHomeScreen(
                                             Button(
                                                 onClick = {
                                                     scope.launch {
-                                                        val res = UniFindRepository.moderateItem(item.id, "approve", "Aprobado en ventanilla por Vigilancia")
+                                                        val targetId = item.code.ifBlank { item.id }
+                                                        val res = UniFindRepository.moderateItem(targetId, "approve", "Aprobado en ventanilla por Vigilancia")
                                                         if (res.isSuccess) {
                                                             moderationMessage = "¡Reporte #${item.code} aprobado y publicado en Feed!"
                                                             refreshData()
@@ -1165,7 +1199,8 @@ fun GuardHomeScreen(
                                             Button(
                                                 onClick = {
                                                     scope.launch {
-                                                        val res = UniFindRepository.moderateItem(item.id, "reject", "Rechazado por Vigilancia: foto ilegible o contenido no conforme")
+                                                        val targetId = item.code.ifBlank { item.id }
+                                                        val res = UniFindRepository.moderateItem(targetId, "reject", "Rechazado por Vigilancia: foto ilegible o contenido no conforme")
                                                         if (res.isSuccess) {
                                                             moderationMessage = "Reporte #${item.code} rechazado."
                                                             refreshData()

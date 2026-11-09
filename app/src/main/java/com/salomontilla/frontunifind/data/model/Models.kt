@@ -100,7 +100,9 @@ data class CreateLostDetailedRequest(
 @Serializable
 data class ClaimRequest(
     val ownershipProofText: String,
-    val securityAnswer: String? = null
+    val securityAnswer: String? = null,
+    val claimantId: String? = null,
+    val itemId: String? = null
 )
 
 @Serializable
@@ -125,7 +127,15 @@ data class ModerateItemRequest(
 @Serializable
 data class NotifyFoundRequest(
     val action: String, // "LEFT_AT_PORTERIA" o "HAVE_IT_WITH_ME"
-    val finderNote: String? = null
+    val finderNote: String? = null,
+    val finderId: String? = null,
+    val itemId: String? = null
+)
+
+@Serializable
+data class CreateChatRequest(
+    val itemId: String,
+    val partnerId: String? = null
 )
 
 @Serializable
@@ -203,7 +213,8 @@ data class ChatMessageDto(
 
 @Serializable
 data class SendMessageRequest(
-    val content: String
+    val content: String,
+    val senderId: String? = null
 )
 
 @Serializable
