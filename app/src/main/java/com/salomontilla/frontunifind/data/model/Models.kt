@@ -163,7 +163,14 @@ data class UserDto(
     val rating: Double = 5.0,
     val reputation: ReputationDetails? = null
 ) {
-    val realId: String get() = id.ifBlank { mongoId.orEmpty() }.ifBlank { "670c1f1e1c9d440000a10001" }
+    val realId: String
+        get() = when {
+            id.length == 24 && !id.startsWith("user-") -> id
+            !mongoId.isNullOrBlank() && mongoId.length == 24 -> mongoId
+            isGuard -> "670c1f1e1c9d440000a10003"
+            isAdmin -> "670c1f1e1c9d440000a10004"
+            else -> "670c1f1e1c9d440000a10001"
+        }
     val displayName: String get() = name?.takeIf { it.isNotBlank() } ?: fullName?.takeIf { it.isNotBlank() } ?: "Carlos Muñoz"
     val isGuard: Boolean get() = role.equals("guard", ignoreCase = true) || studentCode.startsWith("GUARD", ignoreCase = true)
     val isAdmin: Boolean get() = role.equals("admin", ignoreCase = true) || role.equals("superadmin", ignoreCase = true) || studentCode.startsWith("ADMIN", ignoreCase = true)

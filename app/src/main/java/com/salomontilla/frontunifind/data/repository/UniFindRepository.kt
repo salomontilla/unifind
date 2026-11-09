@@ -54,10 +54,11 @@ object UniFindRepository {
     private val json = KtorClient.jsonConfig
 
     var currentUser: UserDto = UserDto(
-        id = "user-carlos-2023",
-        name = "Carlos Muñoz",
+        id = "670c1f1e1c9d440000a10001",
+        name = "Carlos Andrés Muñoz",
         institutionalEmail = "carlos.munoz@uniautonoma.edu.co",
         studentCode = "2023-1001",
+        role = "student",
         honorPoints = 200,
         badges = listOf("Honestidad ejemplar", "Entrega puntual"),
         rating = 5.0
@@ -308,9 +309,11 @@ object UniFindRepository {
     suspend fun createFoundExpress(req: CreateFoundExpressRequest): Result<ItemDto> {
         val payload = if (req.postedBy.isNullOrBlank()) req.copy(postedBy = currentUser.realId) else req
         return try {
+            android.util.Log.d("UniFind", "POST /items express: title='${payload.title}', postedBy='${payload.postedBy}'")
             val responseText = client.post("items") {
                 setBody(payload)
             }.bodyAsText()
+            android.util.Log.d("UniFind", "POST /items express response: $responseText")
             val created = parseResponse<ItemDto>(responseText)
             val normalized = if (created.code.isBlank()) {
                 created.copy(
@@ -328,7 +331,8 @@ object UniFindRepository {
             } else created
             fallbackItems.add(0, normalized)
             Result.success(normalized)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("UniFind", "createFoundExpress failed, fallback to local", e)
             val newCode = "UAC-${(1000..9999).random()}"
             val created = ItemDto(
                 id = "item-$newCode",
@@ -362,9 +366,11 @@ object UniFindRepository {
     suspend fun createLostDetailed(req: CreateLostDetailedRequest): Result<ItemDto> {
         val payload = if (req.postedBy.isNullOrBlank()) req.copy(postedBy = currentUser.realId) else req
         return try {
+            android.util.Log.d("UniFind", "POST /items lost: title='${payload.title}', postedBy='${payload.postedBy}'")
             val responseText = client.post("items") {
                 setBody(payload)
             }.bodyAsText()
+            android.util.Log.d("UniFind", "POST /items lost response: $responseText")
             val created = parseResponse<ItemDto>(responseText)
             val normalized = if (created.code.isBlank()) {
                 created.copy(
@@ -382,7 +388,8 @@ object UniFindRepository {
             } else created
             fallbackItems.add(0, normalized)
             Result.success(normalized)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.e("UniFind", "createLostDetailed failed, fallback to local", e)
             val newCode = "UAC-${(1000..9999).random()}"
             val created = ItemDto(
                 id = "item-$newCode",
