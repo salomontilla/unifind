@@ -724,4 +724,21 @@ object UniFindRepository {
             Result.failure(e)
         }
     }
+
+    // 20. GET /items?custodyType=PORTERIA&status=active (Inventario Físico en Portería)
+    suspend fun getPorteriaInventory(search: String? = null): Result<List<ItemDto>> {
+        return try {
+            val responseText = client.get("items") {
+                parameter("custodyType", "PORTERIA")
+                parameter("status", "active")
+                if (!search.isNullOrBlank()) parameter("search", search)
+                parameter("limit", 100)
+            }.bodyAsText()
+            val items = parseResponse<List<ItemDto>>(responseText)
+            Result.success(items)
+        } catch (_: Exception) {
+            val fallback = fallbackItems.filter { it.custodyType == "PORTERIA" }
+            Result.success(fallback)
+        }
+    }
 }

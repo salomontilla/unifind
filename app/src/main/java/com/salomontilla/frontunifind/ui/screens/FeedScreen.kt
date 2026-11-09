@@ -340,6 +340,47 @@ fun FeedScreen(
                             }
                         }
 
+                        if (UniFindRepository.currentUser.isGuard) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onNavigateToLogin() },
+                                shape = RoundedCornerShape(12.dp),
+                                color = UniautonomaOrange
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = null,
+                                            tint = SurfaceWhite,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Sesión Oficial de Vigilancia",
+                                            fontFamily = MuseoSansRounded,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = SurfaceWhite
+                                        )
+                                    }
+                                    Text(
+                                        text = "Volver a Consola →",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = SurfaceWhite
+                                    )
+                                }
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
 
                         // Control Segmentado: Encontrados vs Perdidos

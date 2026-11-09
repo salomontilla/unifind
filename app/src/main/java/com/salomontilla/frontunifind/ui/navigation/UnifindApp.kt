@@ -17,6 +17,7 @@ import com.salomontilla.frontunifind.data.repository.UniFindRepository
 import com.salomontilla.frontunifind.ui.screens.ChatScreen
 import com.salomontilla.frontunifind.ui.screens.DetailScreen
 import com.salomontilla.frontunifind.ui.screens.FeedScreen
+import com.salomontilla.frontunifind.ui.screens.GuardHomeScreen
 import com.salomontilla.frontunifind.ui.screens.HonorScreen
 import com.salomontilla.frontunifind.ui.screens.LoginScreen
 import com.salomontilla.frontunifind.ui.screens.MessagesScreen
@@ -34,10 +35,13 @@ import com.salomontilla.frontunifind.ui.screens.ReportScreen
 fun UnifindApp() {
     val initialScreen = remember {
         if (SessionManager.isLoggedIn()) {
-            SessionManager.getUser()?.let { savedUser ->
+            val savedUser = SessionManager.getUser()
+            if (savedUser != null) {
                 UniFindRepository.currentUser = savedUser
+                if (savedUser.isGuard) Screen.GuardHome else Screen.Feed
+            } else {
+                Screen.Feed
             }
-            Screen.Feed
         } else {
             Screen.Login
         }
@@ -70,7 +74,15 @@ fun UnifindApp() {
                         onNavigateToReport = { navigateTo(Screen.Report) },
                         onNavigateToMessages = { navigateTo(Screen.Messages) },
                         onNavigateToHonor = { navigateTo(Screen.Honor) },
-                        onNavigateToLogin = { navigateTo(Screen.Profile) },
+                        onNavigateToLogin = {
+                            val user = SessionManager.getUser() ?: UniFindRepository.currentUser
+                            if (user.isGuard) {
+                                backStack.clear()
+                                backStack.add(Screen.GuardHome)
+                            } else {
+                                navigateTo(Screen.Profile)
+                            }
+                        },
                         onShowHonorModal = { showRatingModal = true }
                     )
                 }
@@ -152,11 +164,27 @@ fun UnifindApp() {
                     )
                 }
 
+                is Screen.GuardHome -> {
+                    GuardHomeScreen(
+                        onNavigateToFeed = { navigateTo(Screen.Feed) },
+                        onLogout = {
+                            SessionManager.clearSession()
+                            backStack.clear()
+                            backStack.add(Screen.Login)
+                        }
+                    )
+                }
+
                 is Screen.Login -> {
                     LoginScreen(
                         onLoginSuccess = {
                             backStack.clear()
-                            backStack.add(Screen.Feed)
+                            val user = SessionManager.getUser() ?: UniFindRepository.currentUser
+                            if (user.isGuard) {
+                                backStack.add(Screen.GuardHome)
+                            } else {
+                                backStack.add(Screen.Feed)
+                            }
                         }
                     )
                 }

@@ -156,7 +156,11 @@ data class UserDto(
     val honorPoints: Int = 200,
     val badges: List<String> = emptyList(),
     val rating: Double = 5.0
-)
+) {
+    val isGuard: Boolean get() = role.equals("guard", ignoreCase = true)
+    val isAdmin: Boolean get() = role.equals("admin", ignoreCase = true) || role.equals("superadmin", ignoreCase = true)
+    val isStudent: Boolean get() = !isGuard && !isAdmin
+}
 
 @Serializable
 data class ChatDto(
