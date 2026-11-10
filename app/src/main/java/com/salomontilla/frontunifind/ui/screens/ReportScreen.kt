@@ -59,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
@@ -124,6 +125,7 @@ fun ReportScreen(
 
     var titleHasError by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
+    var publishErrorMessage by remember { mutableStateOf<String?>(null) }
     var showModerationDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -939,6 +941,37 @@ fun ReportScreen(
                 }
             }
 
+            if (publishErrorMessage != null) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFFDE8E8),
+                    border = BorderStroke(1.dp, Color(0xFFF87171))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = publishErrorMessage ?: "",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF991B1B)
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // Botón Único Principal (54.dp en #0756A5) conectado a POST /items
@@ -951,8 +984,9 @@ fun ReportScreen(
                     } else {
                         titleHasError = false
                         isPublishing = true
+                        publishErrorMessage = null
                         scope.launch {
-                            if (isFound) {
+                            val res = if (isFound) {
                                 val categoryMapped = when (selectedQuickType) {
                                     "Carné / Doc" -> "Documentos / Carnés"
                                     "Llaves" -> "Llaves"
@@ -974,8 +1008,6 @@ fun ReportScreen(
                                         photoUrl = if (hasPhotoAttached) "https://images.unsplash.com/photo-1587145820266-a5951ee6f620" else "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa"
                                     )
                                 )
-                                isPublishing = false
-                                showModerationDialog = true
                             } else {
                                 UniFindRepository.createLostDetailed(
                                     CreateLostDetailedRequest(
@@ -990,8 +1022,12 @@ fun ReportScreen(
                                         photoUrl = null
                                     )
                                 )
-                                isPublishing = false
+                            }
+                            isPublishing = false
+                            if (res.isSuccess) {
                                 showModerationDialog = true
+                            } else {
+                                publishErrorMessage = res.exceptionOrNull()?.message ?: "Error al publicar reporte en el servidor"
                             }
                         }
                     }

@@ -60,33 +60,51 @@ object UniFindRepository {
         rating = 5.0
     )
 
-    /**
-     * Reintento inteligente de host en caso de timeout de conexión
-     * Conmuta entre LAN (10.10.164.152) y Emulador (10.0.2.2)
-     */
-    private suspend fun <T> withRetryHost(block: suspend () -> T): T {
-        return try {
-            block()
-        } catch (e: Exception) {
-            val msg = e.message ?: ""
-            if (e is io.ktor.client.network.sockets.ConnectTimeoutException ||
+    private fun isNetworkOrTimeoutException(e: Throwable): Boolean {
+        val msg = e.message ?: ""
+        return e is io.ktor.client.network.sockets.ConnectTimeoutException ||
+                e is io.ktor.client.plugins.HttpRequestTimeoutException ||
                 e is java.net.ConnectException ||
                 e is java.net.SocketTimeoutException ||
+                e is java.net.UnknownHostException ||
                 msg.contains("timeout", ignoreCase = true) ||
-                msg.contains("refused", ignoreCase = true)
-            ) {
-                val alternateHost = if (KtorClient.host == KtorClient.EMULATOR_HOST) {
-                    KtorClient.LAN_HOST
-                } else {
-                    KtorClient.EMULATOR_HOST
-                }
-                android.util.Log.w("UniFind", "Fallo de conexión en ${KtorClient.host}, reintentando en $alternateHost...")
-                KtorClient.host = alternateHost
-                block()
-            } else {
-                throw e
+                msg.contains("refused", ignoreCase = true) ||
+                msg.contains("failed to connect", ignoreCase = true)
+    }
+
+    /**
+     * Reintento inteligente de host en caso de timeout o fallo de conexión.
+     * Conmuta secuencialmente entre todos los candidatos configurados en KtorClient:
+     * 127.0.0.1 (adb reverse) -> 192.168.80.13 (Wi-Fi) -> 10.0.2.2 (Emulador) -> 10.10.164.152
+     */
+    private suspend fun <T> withRetryHost(block: suspend () -> T): T {
+        var lastException: Throwable? = null
+        val startIndex = KtorClient.CANDIDATE_HOSTS.indexOf(KtorClient.host).coerceAtLeast(0)
+
+        // Intento 1: con el host activo actual
+        try {
+            return block()
+        } catch (e: Throwable) {
+            if (!isNetworkOrTimeoutException(e)) throw e
+            lastException = e
+        }
+
+        // Si falló, intentar secuencialmente con los demás candidatos
+        for (offset in 1 until KtorClient.CANDIDATE_HOSTS.size) {
+            val nextHost = KtorClient.CANDIDATE_HOSTS[(startIndex + offset) % KtorClient.CANDIDATE_HOSTS.size]
+            android.util.Log.w("UniFind", "Conexión falló en ${KtorClient.host}, conmutando a candidato: $nextHost:${KtorClient.PORT}...")
+            KtorClient.host = nextHost
+            try {
+                val res = block()
+                android.util.Log.i("UniFind", "¡Conexión exitosa con $nextHost! Fijado como host activo.")
+                return res
+            } catch (e: Throwable) {
+                if (!isNetworkOrTimeoutException(e)) throw e
+                lastException = e
             }
         }
+
+        throw lastException ?: IllegalStateException("No se pudo conectar a ningún host de UniFind Backend")
     }
 
     private inline fun <reified T> parseResponse(rawBody: String): T {

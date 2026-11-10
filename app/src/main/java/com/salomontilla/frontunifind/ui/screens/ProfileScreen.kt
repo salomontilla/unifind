@@ -772,7 +772,7 @@ fun ProfileScreen(
                                         .padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        text = if (serverHealth != null) "Servidor Activo • 10.0.2.2" else "En línea",
+                                        text = if (serverHealth != null) "Servidor Activo • ${KtorClient.host}:${KtorClient.PORT}" else "Conectando...",
                                         fontFamily = MuseoSansRounded,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,

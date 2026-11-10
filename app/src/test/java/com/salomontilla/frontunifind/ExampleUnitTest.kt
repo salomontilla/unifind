@@ -27,6 +27,31 @@ class ExampleUnitTest {
             val feedRes = UniFindRepository.getItems()
             println("FEED RES: isSuccess=${feedRes.isSuccess}, count=${feedRes.getOrNull()?.size}")
             assertTrue(feedRes.isSuccess)
+
+            // 3. Probar creación de reporte express (Found)
+            val createRes = UniFindRepository.createFoundExpress(
+                com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest(
+                    title = "Objeto Prueba Unitaria Directa",
+                    category = "Electrónica",
+                    custodyType = "PORTERIA",
+                    campusZone = "Biblioteca Central",
+                    locationReference = "Piso 1 Cubículos",
+                    photoUrl = "https://images.unsplash.com/photo-1587145820266-a5951ee6f620"
+                )
+            )
+            // 4. Probar Login como Vigilante (Guard) y consulta de pendientes
+            val guardLoginRes = UniFindRepository.login("andres.salazar@uniautonoma.edu.co", "GUARD-001")
+            assertTrue(guardLoginRes.isSuccess)
+            val guardUser = guardLoginRes.getOrNull()
+            assertNotNull(guardUser)
+            assertTrue("El rol debe ser guard", guardUser!!.isGuard)
+
+            val guardPendingRes = UniFindRepository.getPendingModerationItems()
+            assertTrue(guardPendingRes.isSuccess)
+            val guardPending = guardPendingRes.getOrNull()
+            assertNotNull(guardPending)
+            println("GUARD PENDING ITEMS: count=${guardPending!!.size}")
+            assertTrue("Debe tener items pendientes de moderación en portería", guardPending.isNotEmpty())
         }
     }
 }

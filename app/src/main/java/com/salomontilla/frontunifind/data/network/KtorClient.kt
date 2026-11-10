@@ -29,27 +29,39 @@ import kotlinx.serialization.json.Json
  */
 object KtorClient {
 
-    const val EMULATOR_HOST = "10.0.2.2"
-    const val LAN_HOST = "10.10.164.152"
     const val LOCALHOST = "127.0.0.1"
+    const val CURRENT_LAN_HOST = "192.168.80.13"
+    const val EMULATOR_HOST = "10.0.2.2"
+    const val LEGACY_LAN_HOST = "10.10.164.152"
     const val PORT = 3000
+
+    val CANDIDATE_HOSTS = listOf(
+        LOCALHOST,          // 127.0.0.1 (adb reverse - directo y rápido para emulador y USB)
+        CURRENT_LAN_HOST,   // 192.168.80.13 (IP Wi-Fi activa para dispositivos móviles en la misma red)
+        EMULATOR_HOST,      // 10.0.2.2 (Fallback QEMU SLIRP)
+        LEGACY_LAN_HOST     // 10.10.164.152 (Fallback red universidad)
+    )
 
     val isEmulator: Boolean
         get() = try {
-            (Build.FINGERPRINT.startsWith("generic")
-                    || Build.FINGERPRINT.startsWith("unknown")
-                    || Build.MODEL.contains("google_sdk")
-                    || Build.MODEL.contains("Emulator")
-                    || Build.MODEL.contains("Android SDK built for x86")
-                    || Build.MANUFACTURER.contains("Genymotion")
-                    || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
-                    || "google_sdk" == Build.PRODUCT)
+            Build.FINGERPRINT.startsWith("generic") ||
+                    Build.FINGERPRINT.startsWith("unknown") ||
+                    Build.MODEL.contains("google_sdk", ignoreCase = true) ||
+                    Build.MODEL.contains("Emulator", ignoreCase = true) ||
+                    Build.MODEL.contains("Android SDK", ignoreCase = true) ||
+                    Build.MODEL.contains("sdk_gphone", ignoreCase = true) ||
+                    Build.HARDWARE.contains("goldfish", ignoreCase = true) ||
+                    Build.HARDWARE.contains("ranchu", ignoreCase = true) ||
+                    Build.PRODUCT.contains("sdk_gphone", ignoreCase = true) ||
+                    Build.PRODUCT.contains("google_sdk", ignoreCase = true) ||
+                    Build.MANUFACTURER.contains("Genymotion", ignoreCase = true) ||
+                    (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
         } catch (_: Throwable) {
             false
         }
 
-    // Host activo (se conmuta dinámicamente si hay fallo de conexión)
-    var host: String = if (isEmulator) EMULATOR_HOST else LAN_HOST
+    // Host activo (comienza con LOCALHOST si es emulador o CURRENT_LAN_HOST si es móvil físico)
+    var host: String = if (isEmulator) LOCALHOST else CURRENT_LAN_HOST
         set(value) {
             field = value
             android.util.Log.i("UniFind", "KtorClient: Conmutando host activo a $value:$PORT")
@@ -72,9 +84,9 @@ object KtorClient {
         }
 
         install(HttpTimeout) {
-            connectTimeoutMillis = 4_000L
-            requestTimeoutMillis = 12_000L
-            socketTimeoutMillis = 12_000L
+            connectTimeoutMillis = 2_500L
+            requestTimeoutMillis = 10_000L
+            socketTimeoutMillis = 10_000L
         }
 
         install(Logging) {
