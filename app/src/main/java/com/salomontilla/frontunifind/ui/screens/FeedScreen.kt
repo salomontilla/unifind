@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -89,6 +90,7 @@ import com.salomontilla.frontunifind.ui.theme.UniautonomaNavy
 import com.salomontilla.frontunifind.ui.theme.UniautonomaOrange
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextPrimary
 import com.salomontilla.frontunifind.ui.theme.UniautonomaTextSecondary
+import com.salomontilla.frontunifind.ui.theme.YellowLight
 import kotlinx.coroutines.delay
 
 /**
@@ -255,28 +257,57 @@ fun FeedScreen(
                                 }
                             }
 
-                            Box(contentAlignment = Alignment.TopEnd) {
-                                IconButton(
-                                    onClick = { /* Notificaciones institucionales */ },
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.12f))
+                            if (UniFindRepository.currentUser.isGuard) {
+                                Surface(
+                                    onClick = { onNavigateToLogin() },
+                                    shape = RoundedCornerShape(50.dp),
+                                    color = UniautonomaOrange,
+                                    shadowElevation = 6.dp
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Notifications,
-                                        contentDescription = "Notificaciones",
-                                        tint = SurfaceWhite,
-                                        modifier = Modifier.size(20.dp)
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Security,
+                                            contentDescription = null,
+                                            tint = SurfaceWhite,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                        Text(
+                                            text = "Volver a Portería",
+                                            fontFamily = MuseoSansRounded,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = SurfaceWhite
+                                        )
+                                    }
+                                }
+                            } else {
+                                Box(contentAlignment = Alignment.TopEnd) {
+                                    IconButton(
+                                        onClick = { /* Notificaciones institucionales */ },
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White.copy(alpha = 0.12f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Notifications,
+                                            contentDescription = "Notificaciones",
+                                            tint = SurfaceWhite,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(top = 6.dp, end = 6.dp)
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(UniautonomaOrange)
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .padding(top = 6.dp, end = 6.dp)
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(UniautonomaOrange)
-                                )
                             }
                         }
 
@@ -381,22 +412,23 @@ fun FeedScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
 
-                        // Control Segmentado: Encontrados vs Perdidos
+                        // Control Segmentado Clarificado: Objetos Encontrados vs Se Buscan (Perdidos)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(46.dp)
                                 .clip(RoundedCornerShape(50.dp))
                                 .background(NavyCard)
                                 .padding(4.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            // Pestaña A: Objetos que alguien encontró
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(36.dp)
+                                    .fillMaxHeight()
                                     .clip(RoundedCornerShape(50.dp))
                                     .background(
                                         if (selectedStatus == ReportStatus.FOUND) UniautonomaBlue else Color.Transparent
@@ -408,29 +440,30 @@ fun FeedScreen(
                                 if (selectedStatus == ReportStatus.FOUND) {
                                     Box(
                                         modifier = Modifier
-                                            .size(6.dp)
+                                            .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(UniautonomaOrange)
+                                            .background(GreenSuccess)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
                                 Text(
                                     text = if (selectedStatus == ReportStatus.FOUND && !isLoading) {
-                                        "Encontrados (${itemsList.size})"
+                                        "📦 Encontrados (${itemsList.size})"
                                     } else {
-                                        "Encontrados"
+                                        "📦 Encontrados"
                                     },
                                     fontFamily = MuseoSansRounded,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = if (selectedStatus == ReportStatus.FOUND) FontWeight.Bold else FontWeight.Medium,
                                     color = if (selectedStatus == ReportStatus.FOUND) SurfaceWhite else Color.White.copy(alpha = 0.70f)
                                 )
                             }
 
+                            // Pestaña B: Objetos que alguien extravió
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(36.dp)
+                                    .fillMaxHeight()
                                     .clip(RoundedCornerShape(50.dp))
                                     .background(
                                         if (selectedStatus == ReportStatus.LOST) UniautonomaBlue else Color.Transparent
@@ -442,7 +475,7 @@ fun FeedScreen(
                                 if (selectedStatus == ReportStatus.LOST) {
                                     Box(
                                         modifier = Modifier
-                                            .size(6.dp)
+                                            .size(7.dp)
                                             .clip(CircleShape)
                                             .background(UniautonomaOrange)
                                     )
@@ -450,16 +483,39 @@ fun FeedScreen(
                                 }
                                 Text(
                                     text = if (selectedStatus == ReportStatus.LOST && !isLoading) {
-                                        "Perdidos (${itemsList.size})"
+                                        "📢 Se Buscan (${itemsList.size})"
                                     } else {
-                                        "Perdidos"
+                                        "📢 Se Buscan"
                                     },
                                     fontFamily = MuseoSansRounded,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = if (selectedStatus == ReportStatus.LOST) FontWeight.Bold else FontWeight.Medium,
                                     color = if (selectedStatus == ReportStatus.LOST) SurfaceWhite else Color.White.copy(alpha = 0.70f)
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Banner Explicativo de Contexto (Aclara inmediatamente qué significa cada sección)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                        ) {
+                            Text(
+                                text = if (selectedStatus == ReportStatus.FOUND) {
+                                    "💡 Objetos que alguien encontró y están bajo custodia (en Portería o con el hallador). Si reconoces el tuyo, pulsa en '¡Es mío!' para reclamarlo."
+                                } else {
+                                    "💡 Avisos de búsqueda de compañeros que extraviaron una pertenencia en la U. Si lo has visto o lo tienes contigo, pulsa para avisarle al dueño."
+                                },
+                                fontFamily = MuseoSansRounded,
+                                fontSize = 11.sp,
+                                color = SurfaceWhite.copy(alpha = 0.9f),
+                                lineHeight = 15.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
                         }
                     }
                 }
@@ -728,9 +784,9 @@ private fun DynamicFeedItemCard(
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
                             text = if (isPorteria) {
-                                "En Portería / Custodia"
+                                "🟢 En Casillero de Portería"
                             } else {
-                                "En Custodia de Estudiante"
+                                "🟡 En Custodia de Estudiante"
                             },
                             fontFamily = MuseoSansRounded,
                             fontSize = 11.sp,
@@ -749,7 +805,7 @@ private fun DynamicFeedItemCard(
                     )
 
                     Text(
-                        text = "ID #$itemCode • ${item.category.ifBlank { "General" }}",
+                        text = "ID #${itemCode} • Hallazgo en Campus",
                         fontFamily = MuseoSansRounded,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
@@ -812,7 +868,7 @@ private fun DynamicFeedItemCard(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "¡Es mío! Reclamar →",
+                            text = "¡Es mío! Reclamar Pertenencia →",
                             fontFamily = MuseoSansRounded,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -830,23 +886,23 @@ private fun DynamicFeedItemCard(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50.dp))
-                            .background(BlueLight)
+                            .background(YellowLight)
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = null,
-                            tint = UniautonomaBlue,
+                            tint = UniautonomaOrange,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "Objeto Perdido • #$itemCode",
+                            text = "📢 SE BUSCA • Extraviado por Estudiante",
                             fontFamily = MuseoSansRounded,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = UniautonomaBlue
+                            color = UniautonomaOrange
                         )
                     }
                     Text(
@@ -878,7 +934,7 @@ private fun DynamicFeedItemCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = item.displayLocation,
+                        text = "Visto por última vez: ${item.displayLocation}",
                         fontFamily = MuseoSansRounded,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -906,14 +962,14 @@ private fun DynamicFeedItemCard(
                         .fillMaxWidth()
                         .height(44.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, UniautonomaBlue)
+                    border = BorderStroke(1.5.dp, UniautonomaOrange)
                 ) {
                     Text(
-                        text = "¡Lo encontré! Avisar →",
+                        text = "¡Lo encontré / Tengo Información! →",
                         fontFamily = MuseoSansRounded,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = UniautonomaBlue
+                        color = UniautonomaOrange
                     )
                 }
             }

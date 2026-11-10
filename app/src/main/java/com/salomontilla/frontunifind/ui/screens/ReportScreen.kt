@@ -268,9 +268,9 @@ fun ReportScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Encontré un objeto",
+                                        text = "📦 Encontré un objeto",
                                         fontFamily = MuseoSansRounded,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (isFound) FontWeight.Bold else FontWeight.SemiBold,
                                         color = if (isFound) SurfaceWhite else UniautonomaTextPrimary,
                                         maxLines = 1
@@ -278,7 +278,7 @@ fun ReportScreen(
                                 }
                             }
 
-                            // Pestaña 2: Perdí un objeto
+                            // Pestaña 2: Se me perdió algo mío (Modo Extraviado)
                             Surface(
                                 onClick = {
                                     isFound = false
@@ -309,9 +309,9 @@ fun ReportScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Perdí un objeto",
+                                        text = "📢 Perdí mi pertenencia",
                                         fontFamily = MuseoSansRounded,
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (!isFound) FontWeight.Bold else FontWeight.SemiBold,
                                         color = if (!isFound) SurfaceWhite else UniautonomaTextPrimary,
                                         maxLines = 1
@@ -325,13 +325,14 @@ fun ReportScreen(
 
                     Text(
                         text = if (isFound) {
-                            "Registra el hallazgo en Portería o custodia personal para devolverlo a su dueño."
+                            "📦 MODO HALLAZGO: Viste o recogiste un objeto ajeno en el campus. Repórtalo para dejarlo en Portería o entregarlo directamente a su dueño."
                         } else {
-                            "Detalla las señas particulares de tu objeto para recibir aviso inmediato si aparece."
+                            "📢 MODO EXTRAVÍO: Se te perdió algo tuyo. Publica el aviso con sus señas para que Vigilancia y la comunidad te avisen apenas aparezca."
                         },
                         fontFamily = MuseoSansRounded,
-                        fontSize = 12.sp,
-                        color = UniautonomaTextSecondary,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = UniautonomaNavy,
                         lineHeight = 16.sp
                     )
                 }

@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.salomontilla.frontunifind.R
@@ -134,6 +136,16 @@ fun ProfileScreen(
     var activeInfoSheet by remember { mutableStateOf<String?>(null) }
     var showPorteriaConsole by remember { mutableStateOf(false) }
 
+    var guardPendingCount by remember { mutableIntStateOf(0) }
+    var guardCustodyCount by remember { mutableIntStateOf(0) }
+    var isLoadingGuardStats by remember { mutableStateOf(false) }
+
+    val effectiveRole = profileData?.user?.role?.takeIf { it.isNotBlank() } ?: user.role
+    val displayCode = profileData?.user?.studentCode ?: user.studentCode.ifBlank { "2023-1001" }
+    val isGuard = effectiveRole.equals("guard", ignoreCase = true) || displayCode.startsWith("GUARD", ignoreCase = true)
+    val isAdmin = effectiveRole.equals("admin", ignoreCase = true) || effectiveRole.equals("superadmin", ignoreCase = true) || displayCode.startsWith("ADMIN", ignoreCase = true)
+    val isStudent = !isGuard && !isAdmin
+
     LaunchedEffect(Unit) {
         scope.launch {
             UniFindRepository.getUserProfile(user.realId).onSuccess { data ->
@@ -153,6 +165,18 @@ fun ProfileScreen(
             }
             isLoadingItems = false
         }
+        if (isGuard) {
+            scope.launch {
+                isLoadingGuardStats = true
+                UniFindRepository.getPendingModerationItems().onSuccess {
+                    guardPendingCount = it.size
+                }
+                UniFindRepository.getPorteriaInventory().onSuccess {
+                    guardCustodyCount = it.size
+                }
+                isLoadingGuardStats = false
+            }
+        }
     }
 
     LaunchedEffect(selectedTab) {
@@ -164,12 +188,6 @@ fun ProfileScreen(
             isLoadingItems = false
         }
     }
-
-    val effectiveRole = profileData?.user?.role?.takeIf { it.isNotBlank() } ?: user.role
-    val displayCode = profileData?.user?.studentCode ?: user.studentCode.ifBlank { "2023-1001" }
-    val isGuard = effectiveRole.equals("guard", ignoreCase = true) || displayCode.startsWith("GUARD", ignoreCase = true)
-    val isAdmin = effectiveRole.equals("admin", ignoreCase = true) || effectiveRole.equals("superadmin", ignoreCase = true) || displayCode.startsWith("ADMIN", ignoreCase = true)
-    val isStudent = !isGuard && !isAdmin
 
     val displayName = profileData?.user?.fullName ?: (user.name?.takeIf { it.isNotBlank() } ?: (if (isGuard) "Andrés Felipe Salazar (Vigilancia)" else if (isAdmin) "Administrador del Sistema UniFind" else "Carlos Muñoz"))
     val displayEmail = profileData?.user?.institutionalEmail ?: user.institutionalEmail.ifBlank { if (isGuard) "andres.salazar@uniautonoma.edu.co" else if (isAdmin) "admin.unifind@uniautonoma.edu.co" else "carlos.munoz@uniautonoma.edu.co" }
@@ -223,10 +241,24 @@ fun ProfileScreen(
             .fillMaxSize()
             .background(UniautonomaBgLight)
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 115.dp)
-        ) {
+        if (isGuard) {
+            GuardProfileContent(
+                displayName = displayName,
+                displayCode = displayCode,
+                displayEmail = displayEmail,
+                serverHealth = serverHealth,
+                pendingCount = guardPendingCount,
+                custodyCount = guardCustodyCount,
+                isLoadingStats = isLoadingGuardStats,
+                onNavigateToGuardHome = onNavigateToGuardHome,
+                onNavigateToFeed = onNavigateToFeed,
+                onLogout = onLogout
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 115.dp)
+            ) {
             // =================================================================
             // 1. CABECERA CARNÉ DIGITAL ESTUDIANTIL (#062653)
             // =================================================================
@@ -1281,6 +1313,7 @@ fun ProfileScreen(
                 }
             }
         }
+    }
 
         if (isGuard) {
             Surface(
@@ -1289,15 +1322,16 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(34.dp),
                 color = UniautonomaNavy,
-                shadowElevation = 8.dp
+                shadowElevation = 12.dp,
+                border = BorderStroke(1.dp, CardStroke)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onNavigateToGuardHome() }
-                        .padding(vertical = 14.dp, horizontal = 16.dp),
+                        .padding(vertical = 16.dp, horizontal = 20.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1307,11 +1341,11 @@ fun ProfileScreen(
                         tint = UniautonomaOrange,
                         modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Volver a Consola de Vigilancia",
                         fontFamily = MuseoSansRounded,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = SurfaceWhite
                     )
@@ -1396,6 +1430,501 @@ fun ProfileScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+/**
+ * =============================================================================
+ * GuardProfileContent: Credencial Oficial de Seguridad y Panel Operativo
+ * Exclusivo para el rol GUARD (Oficial de Portería / Vigilancia).
+ * Elimina completamente los elementos estudiantiles (carné con semestre,
+ * reputación cívica, insignias de honor, reportes personales) y presenta
+ * una tarjeta institucional de acreditación de seguridad con métricas en vivo.
+ * =============================================================================
+ */
+@Composable
+private fun GuardProfileContent(
+    displayName: String,
+    displayCode: String,
+    displayEmail: String,
+    serverHealth: HealthResponse?,
+    pendingCount: Int,
+    custodyCount: Int,
+    isLoadingStats: Boolean,
+    onNavigateToGuardHome: () -> Unit,
+    onNavigateToFeed: () -> Unit,
+    onLogout: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 1. CREDENCIAL OFICIAL DE SEGURIDAD (Tarjeta estilo carné físico de oficial)
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = UniautonomaNavy,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.5.dp, UniautonomaOrange)
+            ) {
+                Box {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_grifo_uniautonoma),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 30.dp, y = (-10).dp)
+                            .size(170.dp)
+                            .alpha(0.08f)
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Franja superior institucional
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "UNIAUTÓNOMA DEL CAUCA",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = UniautonomaOrange,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = "Seguridad & Control de Campus",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 10.sp,
+                                    color = SurfaceWhite.copy(alpha = 0.75f)
+                                )
+                            }
+
+                            // Chip de Estado en Turno
+                            Surface(
+                                shape = RoundedCornerShape(50.dp),
+                                color = GreenSuccess.copy(alpha = 0.20f),
+                                border = BorderStroke(1.dp, GreenSuccess)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(GreenSuccess)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "TURNO ACTIVO",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = GreenSuccess
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        // Avatar Oficial con Insignia de Guardia
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(UniautonomaBlue)
+                                .border(3.dp, UniautonomaOrange, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = SurfaceWhite,
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = displayName,
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = SurfaceWhite,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Oficial de Custodia y Vigilancia",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = UniautonomaOrange
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        HorizontalDivider(
+                            color = SurfaceWhite.copy(alpha = 0.15f),
+                            thickness = 1.dp
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Datos de Acreditación Oficial
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "CÓDIGO OFICIAL",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SurfaceWhite.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = displayCode,
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = SurfaceWhite
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "PUESTO ASIGNADO",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SurfaceWhite.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = "Portería Principal",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = SurfaceWhite
+                                )
+                            }
+
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "SEDE",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SurfaceWhite.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    text = "La Casona",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = SurfaceWhite
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = displayEmail,
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = SurfaceWhite.copy(alpha = 0.70f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. RESUMEN OPERATIVO DEL TURNO (Métricas en vivo)
+        item {
+            Text(
+                text = "Resumen Operativo de Guardia",
+                fontFamily = MuseoSansRounded,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = UniautonomaNavy
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Casillero
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceWhite,
+                    border = BorderStroke(1.dp, CardStroke)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(BlueLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Inventory2, contentDescription = null, tint = UniautonomaBlue, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (isLoadingStats) "..." else "$custodyCount",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = UniautonomaNavy
+                        )
+                        Text(
+                            text = "En Casillero",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = UniautonomaTextSecondary
+                        )
+                    }
+                }
+
+                // Moderación
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceWhite,
+                    border = BorderStroke(1.dp, CardStroke)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(YellowLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = UniautonomaOrange, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (isLoadingStats) "..." else "$pendingCount",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = UniautonomaNavy
+                        )
+                        Text(
+                            text = "Por Moderar",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = UniautonomaTextSecondary
+                        )
+                    }
+                }
+
+                // Sistema
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = SurfaceWhite,
+                    border = BorderStroke(1.dp, CardStroke)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(GreenLight),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = GreenSuccess, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = if (serverHealth != null) "OK" else "--",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = GreenSuccess
+                        )
+                        Text(
+                            text = "Servidor API",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = UniautonomaTextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. ACCESOS DIRECTOS OPERATIVOS
+        item {
+            Text(
+                text = "Acciones del Oficial",
+                fontFamily = MuseoSansRounded,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = UniautonomaNavy
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToGuardHome() },
+                shape = RoundedCornerShape(14.dp),
+                color = SurfaceWhite,
+                border = BorderStroke(1.dp, CardStroke)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(UniautonomaBlue),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.ConfirmationNumber, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Abrir Consola de Portería",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = UniautonomaNavy
+                        )
+                        Text(
+                            text = "Despachar tickets, moderar y consultar casillero",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = UniautonomaTextSecondary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = UniautonomaTextSecondary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToFeed() },
+                shape = RoundedCornerShape(14.dp),
+                color = SurfaceWhite,
+                border = BorderStroke(1.dp, CardStroke)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(UniautonomaNavy),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Visibility, contentDescription = null, tint = SurfaceWhite, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Explorar Feed Público de Objetos",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = UniautonomaNavy
+                        )
+                        Text(
+                            text = "Ver publicaciones activas como cualquier usuario",
+                            fontFamily = MuseoSansRounded,
+                            fontSize = 11.sp,
+                            color = UniautonomaTextSecondary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = UniautonomaTextSecondary
+                    )
+                }
+            }
+        }
+
+        // 4. CIERRE DE TURNO / LOGOUT
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onLogout() },
+                shape = RoundedCornerShape(14.dp),
+                color = RedLight,
+                border = BorderStroke(1.dp, RedDanger.copy(alpha = 0.3f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = null,
+                        tint = RedDanger,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Finalizar Turno y Cerrar Sesión",
+                        fontFamily = MuseoSansRounded,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = RedDanger
+                    )
+                }
+            }
         }
     }
 }

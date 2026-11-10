@@ -1,10 +1,13 @@
 package com.salomontilla.frontunifind.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +29,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ConfirmationNumber
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
@@ -37,6 +42,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -166,110 +173,74 @@ fun GuardHomeScreen(
         containerColor = ScreenBackground,
         bottomBar = {
             // =================================================================
-            // BARRA DE NAVEGACIÓN ESPECIALIZADA PARA EL ROL GUARD
+            // BARRA FLOTANTE TIPO CÁPSULA / DOCK SIMÉTRICA (4 ELEMENTOS)
             // =================================================================
-            Surface(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding(),
-                color = SurfaceWhite,
-                tonalElevation = 8.dp,
-                shadowElevation = 16.dp,
-                border = BorderStroke(1.dp, CardStroke)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                        .height(68.dp),
+                    shape = RoundedCornerShape(34.dp),
+                    color = SurfaceWhite,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 12.dp,
+                    border = BorderStroke(1.dp, CardStroke)
                 ) {
-                    // Pestaña 1: Despacho (Tickets)
-                    Column(
+                    Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable { selectedTab = 0 }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .fillMaxSize()
+                            .padding(horizontal = 6.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ConfirmationNumber,
-                            contentDescription = "Despachar",
-                            tint = if (selectedTab == 0) UniautonomaBlue else UniautonomaTextSecondary,
-                            modifier = Modifier.size(22.dp)
+                        // 1. Despacho
+                        GuardDockItem(
+                            title = "Despachar",
+                            icon = Icons.Default.ConfirmationNumber,
+                            isSelected = selectedTab == 0,
+                            modifier = Modifier.weight(1f),
+                            onClick = { selectedTab = 0 }
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Despachar",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 11.sp,
-                            fontWeight = if (selectedTab == 0) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (selectedTab == 0) UniautonomaBlue else UniautonomaTextSecondary
-                        )
-                    }
 
-                    // Pestaña 2: Moderación (Barrera 3)
-                    Column(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
+                        // 2. Moderación (Barrera 3)
+                        GuardDockItem(
+                            title = "Moderar",
+                            icon = Icons.Default.Security,
+                            isSelected = selectedTab == 1,
+                            badgeCount = pendingItems.size,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
                                 selectedTab = 1
                                 refreshData()
                             }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box {
-                            Icon(
-                                imageVector = Icons.Default.Security,
-                                contentDescription = "Moderar",
-                                tint = if (selectedTab == 1) UniautonomaOrange else UniautonomaTextSecondary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            if (pendingItems.isNotEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(UniautonomaOrange)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Moderar (${pendingItems.size})",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 11.sp,
-                            fontWeight = if (selectedTab == 1) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (selectedTab == 1) UniautonomaOrange else UniautonomaTextSecondary
                         )
-                    }
 
-                    // Pestaña 3: Inventario en Portería
-                    Column(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable {
+                        // 3. Custodia / Casillero
+                        GuardDockItem(
+                            title = "Casillero",
+                            icon = Icons.Default.Inventory2,
+                            isSelected = selectedTab == 2,
+                            badgeCount = custodyItems.size,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
                                 selectedTab = 2
                                 refreshData()
                             }
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Inventory2,
-                            contentDescription = "Custodia",
-                            tint = if (selectedTab == 2) UniautonomaNavy else UniautonomaTextSecondary,
-                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = "Custodia (${custodyItems.size})",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 11.sp,
-                            fontWeight = if (selectedTab == 2) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (selectedTab == 2) UniautonomaNavy else UniautonomaTextSecondary
+
+                        // 4. Credencial de Oficial
+                        GuardDockItem(
+                            title = "Credencial",
+                            icon = Icons.Default.Badge,
+                            isSelected = false,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToProfile
                         )
                     }
                 }
@@ -332,7 +303,23 @@ fun GuardHomeScreen(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Botón Ver Perfil de Guardia
+                            // Botón Ver Feed Público (Modo Observador)
+                            IconButton(
+                                onClick = onNavigateToFeed,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceWhite.copy(alpha = 0.15f))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = "Ver Feed Público",
+                                    tint = SurfaceWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            // Botón Ver Credencial de Guardia
                             IconButton(
                                 onClick = onNavigateToProfile,
                                 modifier = Modifier
@@ -341,8 +328,8 @@ fun GuardHomeScreen(
                                     .background(SurfaceWhite.copy(alpha = 0.15f))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Mi Carné de Guardia",
+                                    imageVector = Icons.Default.Badge,
+                                    contentDescription = "Credencial de Oficial",
                                     tint = SurfaceWhite,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -1239,27 +1226,75 @@ fun GuardHomeScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "Casillero de Portería Principal (${custodyItems.size})",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = UniautonomaNavy
-                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Casillero de Portería (${custodyItems.size})",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = UniautonomaNavy
+                                )
+                                Text(
+                                    text = "Inventario físico resguardado en garita",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 11.sp,
+                                    color = UniautonomaTextSecondary
+                                )
+                            }
 
                             Button(
                                 onClick = { showRegisterModal = true },
                                 shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = UniautonomaBlue),
+                                colors = ButtonDefaults.buttonColors(containerColor = UniautonomaOrange),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Registrar Ingreso", fontFamily = MuseoSansRounded, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("+ Recibir en Ventanilla (Manual)", fontFamily = MuseoSansRounded, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
+
+                        // Banner explicativo del flujo de custodia
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = UniautonomaBlue.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, UniautonomaBlue.copy(alpha = 0.20f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = UniautonomaBlue,
+                                    modifier = Modifier.size(18.dp).padding(top = 1.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Flujo Automático vs. Recepción en Ventanilla",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = UniautonomaNavy
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "• Automático: Cuando apruebas un reporte en 'Moderar', si fue dejado en Portería, entra automáticamente a este casillero.\n• Manual (+ Recibir en Ventanilla): Úsalo exclusivamente cuando alguien te entregue un objeto físico en la garita sin haber hecho reporte en la app.",
+                                        fontFamily = MuseoSansRounded,
+                                        fontSize = 11.sp,
+                                        color = UniautonomaTextSecondary,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Buscador de inventario
                         OutlinedTextField(
@@ -1390,56 +1425,6 @@ fun GuardHomeScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // =================================================================
-            // ACCESO ALTERNO: VER FEED ESTUDIANTIL
-            // =================================================================
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp)
-                    .clickable { onNavigateToFeed() },
-                shape = RoundedCornerShape(14.dp),
-                color = SurfaceWhite,
-                border = BorderStroke(1.dp, CardStroke)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Visibility, contentDescription = null, tint = UniautonomaBlue, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Ver Feed Público como Estudiante",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = UniautonomaTextPrimary
-                            )
-                            Text(
-                                text = "Inspecciona cómo ven las publicaciones los estudiantes",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 10.sp,
-                                color = UniautonomaTextSecondary
-                            )
-                        }
-                    }
-                    Text(
-                        text = "Abrir Feed →",
-                        fontFamily = MuseoSansRounded,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = UniautonomaBlue
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
@@ -1548,6 +1533,95 @@ fun GuardHomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * =============================================================================
+ * GuardDockItem: Elemento individual de navegación tipo píldora para la barra
+ * flotante de Vigilancia (con soporte para Badges dinámicos de conteo).
+ * =============================================================================
+ */
+@Composable
+private fun GuardDockItem(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
+    onClick: () -> Unit
+) {
+    val contentColor by animateColorAsState(
+        targetValue = if (isSelected) UniautonomaBlue else UniautonomaTextSecondary,
+        animationSpec = tween(durationMillis = 200),
+        label = "guard_dock_color"
+    )
+
+    val pillBackground by animateColorAsState(
+        targetValue = if (isSelected) BlueLight else Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "guard_dock_bg"
+    )
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(24.dp))
+            .background(pillBackground)
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onClick
+            )
+            .padding(vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (badgeCount > 0) {
+                BadgedBox(
+                    badge = {
+                        Badge(
+                            containerColor = UniautonomaOrange,
+                            contentColor = SurfaceWhite
+                        ) {
+                            Text(
+                                text = "$badgeCount",
+                                fontFamily = MuseoSansRounded,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = contentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = contentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = title,
+                fontFamily = MuseoSansRounded,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor,
+                maxLines = 1
+            )
         }
     }
 }
