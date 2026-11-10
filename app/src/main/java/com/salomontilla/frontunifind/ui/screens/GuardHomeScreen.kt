@@ -503,89 +503,10 @@ fun GuardHomeScreen(
                 }
             }
 
-            // =================================================================
-            // SELECTOR DE OPERACIONES PRINCIPALES (TABS)
-            // =================================================================
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = BlueLight,
-                border = BorderStroke(1.dp, CardStroke)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 0) UniautonomaNavy else Color.Transparent)
-                            .clickable { selectedTab = 0 }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "🎟️ Despachar",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == 0) SurfaceWhite else UniautonomaTextSecondary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 1) UniautonomaNavy else Color.Transparent)
-                            .clickable {
-                                selectedTab = 1
-                                refreshData()
-                            }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "🛡️ Moderar (${pendingItems.size})",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == 1) SurfaceWhite else UniautonomaTextSecondary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (selectedTab == 2) UniautonomaNavy else Color.Transparent)
-                            .clickable {
-                                selectedTab = 2
-                                refreshData()
-                            }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "📦 Custodia",
-                            fontFamily = MuseoSansRounded,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (selectedTab == 2) SurfaceWhite else UniautonomaTextSecondary
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // =================================================================
-            // CONTENIDO SEGÚN LA PESTAÑA ACTIVA
+            // CONTENIDO SEGÚN LA PESTAÑA ACTIVA (NAVEGACIÓN POR NAVBAR INFERIOR)
             // =================================================================
             when (selectedTab) {
                 // -------------------------------------------------------------

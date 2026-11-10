@@ -78,7 +78,6 @@ import com.salomontilla.frontunifind.data.model.ItemDto
 import com.salomontilla.frontunifind.data.model.UserProfileData
 import com.salomontilla.frontunifind.data.network.KtorClient
 import com.salomontilla.frontunifind.data.repository.UniFindRepository
-import com.salomontilla.frontunifind.ui.components.GuardTicketConsoleSheet
 import com.salomontilla.frontunifind.ui.components.InstitutionInfoSheet
 import com.salomontilla.frontunifind.ui.components.InstitutionalTexts
 import com.salomontilla.frontunifind.ui.components.MyReportCardSkeleton
@@ -134,7 +133,6 @@ fun ProfileScreen(
 
     var notificationsEnabled by remember { mutableStateOf(true) }
     var activeInfoSheet by remember { mutableStateOf<String?>(null) }
-    var showPorteriaConsole by remember { mutableStateOf(false) }
 
     var guardPendingCount by remember { mutableIntStateOf(0) }
     var guardCustodyCount by remember { mutableIntStateOf(0) }
@@ -817,50 +815,8 @@ fun ProfileScreen(
                             HorizontalDivider(color = DividerStroke, thickness = 1.dp)
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Acceso especializado según RBAC
-                            if (isGuard) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(YellowLight)
-                                        .clickable { onNavigateToGuardHome() }
-                                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.Security,
-                                            contentDescription = null,
-                                            tint = UniautonomaOrange,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(
-                                                text = "Consola de Vigilancia y Portería",
-                                                fontFamily = MuseoSansRounded,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = UniautonomaNavy
-                                            )
-                                            Text(
-                                                text = "Despacho de tickets, moderación e inventario",
-                                                fontFamily = MuseoSansRounded,
-                                                fontSize = 11.sp,
-                                                color = UniautonomaTextSecondary
-                                            )
-                                        }
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = UniautonomaOrange,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            } else if (isAdmin) {
+                            // Acceso especializado según RBAC (Exclusivo Administrador)
+                            if (isAdmin) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -902,53 +858,10 @@ fun ProfileScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
-                            } else {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(BlueLight)
-                                        .clickable { showPorteriaConsole = true }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.ConfirmationNumber,
-                                            contentDescription = null,
-                                            tint = UniautonomaOrange,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(
-                                                text = "Consola de Portería (HU-09)",
-                                                fontFamily = MuseoSansRounded,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = UniautonomaNavy
-                                            )
-                                            Text(
-                                                text = "Validar y despachar tickets TICKET-XXXX-RET",
-                                                fontFamily = MuseoSansRounded,
-                                                fontSize = 11.sp,
-                                                color = UniautonomaTextSecondary
-                                            )
-                                        }
-                                    }
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = UniautonomaOrange,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(10.dp))
+                                HorizontalDivider(color = DividerStroke, thickness = 1.dp)
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-                            HorizontalDivider(color = DividerStroke, thickness = 1.dp)
-                            Spacer(modifier = Modifier.height(8.dp))
 
                             // Switch de notificaciones
                             Row(
@@ -1416,19 +1329,6 @@ fun ProfileScreen(
                 contentText = InstitutionalTexts.BIENESTAR_CONTENT,
                 icon = Icons.Default.Description,
                 onDismiss = { activeInfoSheet = null }
-            )
-        }
-
-        // HU-09: Consola de Portería
-        if (showPorteriaConsole) {
-            GuardTicketConsoleSheet(
-                onDismiss = { showPorteriaConsole = false },
-                onDeliveryCompleted = {
-                    scope.launch {
-                        UniFindRepository.getUserProfile(user.realId).onSuccess { profileData = it }
-                        UniFindRepository.getUserItems(user.realId).onSuccess { myItems = it }
-                    }
-                }
             )
         }
     }
