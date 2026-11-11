@@ -30,16 +30,18 @@ import kotlinx.serialization.json.Json
 object KtorClient {
 
     const val LOCALHOST = "127.0.0.1"
-    const val CURRENT_LAN_HOST = "192.168.80.13"
+    const val CURRENT_LAN_HOST = "10.10.162.148"
     const val EMULATOR_HOST = "10.0.2.2"
+    const val HOME_LAN_HOST = "192.168.80.13"
     const val LEGACY_LAN_HOST = "10.10.164.152"
     const val PORT = 3000
 
     val CANDIDATE_HOSTS = listOf(
+        CURRENT_LAN_HOST,   // 10.10.162.148 (IP Wi-Fi activa actual en la universidad)
         LOCALHOST,          // 127.0.0.1 (adb reverse - directo y rápido para emulador y USB)
-        CURRENT_LAN_HOST,   // 192.168.80.13 (IP Wi-Fi activa para dispositivos móviles en la misma red)
         EMULATOR_HOST,      // 10.0.2.2 (Fallback QEMU SLIRP)
-        LEGACY_LAN_HOST     // 10.10.164.152 (Fallback red universidad)
+        HOME_LAN_HOST,      // 192.168.80.13 (Fallback Wi-Fi casa)
+        LEGACY_LAN_HOST     // 10.10.164.152 (Fallback red universidad previa)
     )
 
     val isEmulator: Boolean
