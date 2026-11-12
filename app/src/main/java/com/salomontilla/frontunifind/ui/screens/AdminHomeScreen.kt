@@ -1332,7 +1332,7 @@ fun AdminHomeScreen(
                                             .padding(horizontal = 10.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = if (serverHealth != null) "Online • ${com.salomontilla.frontunifind.data.network.KtorClient.host}" else "Conectando...",
+                                            text = if (serverHealth != null) "Online • ${com.salomontilla.frontunifind.data.network.KtorClient.displayHost}" else "Conectando...",
                                             fontFamily = MuseoSansRounded,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
