@@ -1,5 +1,11 @@
 package com.salomontilla.frontunifind.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -48,6 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -81,10 +89,34 @@ fun ChatScreen(
     onConfirmDelivery: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
     var isUpdatingStatus by remember { mutableStateOf(false) }
 
     val messages = remember { mutableStateListOf<ChatMessageDto>() }
+
+    val takeChatPhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            scope.launch {
+                UniFindRepository.sendChatMessage(chatId, "📷 [Foto de entrega o verificación adjuntada]")
+                val res = UniFindRepository.getChatMessages(chatId)
+                messages.clear()
+                messages.addAll(res.getOrDefault(emptyList()))
+            }
+        }
+    }
+
+    val chatCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            takeChatPhotoLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Se requiere permiso de cámara para adjuntar foto", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(chatId) {
         val res = UniFindRepository.getChatMessages(chatId)
@@ -246,12 +278,18 @@ fun ChatScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = { /* Adjuntar foto de entrega en chat */ }
+                    onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            takeChatPhotoLauncher.launch(null)
+                        } else {
+                            chatCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        }
+                    }
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
                         contentDescription = "Cámara",
-                        tint = UniautonomaTextSecondary
+                        tint = UniautonomaBlue
                     )
                 }
 

@@ -1,5 +1,16 @@
 package com.salomontilla.frontunifind.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.util.Base64
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -32,6 +43,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
@@ -60,12 +72,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.salomontilla.frontunifind.R
 import com.salomontilla.frontunifind.data.model.CreateFoundExpressRequest
 import com.salomontilla.frontunifind.data.model.CreateLostDetailedRequest
@@ -78,6 +94,7 @@ import com.salomontilla.frontunifind.ui.theme.GreenLight
 import com.salomontilla.frontunifind.ui.theme.GreenSuccess
 import com.salomontilla.frontunifind.ui.theme.InputStroke
 import com.salomontilla.frontunifind.ui.theme.MuseoSansRounded
+import java.io.ByteArrayOutputStream
 import com.salomontilla.frontunifind.ui.theme.NavyCard
 import com.salomontilla.frontunifind.ui.theme.SurfaceWhite
 import com.salomontilla.frontunifind.ui.theme.UniautonomaBgLight
@@ -113,7 +130,8 @@ fun ReportScreen(
     var isAnonymous by remember { mutableStateOf(true) }
     var securityQuestion by remember { mutableStateOf("¿Qué sticker o marca tiene en el estuche?") }
     var securityAnswer by remember { mutableStateOf("Sticker de calavera con iniciales CM") }
-    var hasPhotoAttached by remember { mutableStateOf(true) }
+    var hasPhotoAttached by remember { mutableStateOf(false) }
+    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     // Estados para Modo Objeto Perdido (Dueño)
     var lostTitle by remember { mutableStateOf("Carné Estudiantil Ingeniería de Sistemas") }
@@ -122,6 +140,124 @@ fun ReportScreen(
     var selectedLostZone by remember { mutableStateOf("Biblioteca") }
     var lostLocationRef by remember { mutableStateOf("Cubículos individuales Piso 2") }
     var hasLostPhotoAttached by remember { mutableStateOf(false) }
+    var lostCapturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    val context = LocalContext.current
+
+    // Lanzador para captura directa de foto con la cámara (Modo Hallazgo)
+    val takeFoundPhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            capturedBitmap = bitmap
+            hasPhotoAttached = true
+        }
+    }
+
+    // Lanzador para galería de imágenes (Modo Hallazgo)
+    val pickFoundGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                }
+                capturedBitmap = bitmap
+                hasPhotoAttached = true
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al procesar imagen de la galería", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Permiso de cámara (Modo Hallazgo)
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            takeFoundPhotoLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Se necesita permiso de cámara para capturar la pertenencia", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun openFoundCamera() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            takeFoundPhotoLauncher.launch(null)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    // Lanzador para captura directa de foto con la cámara (Modo Extravío)
+    val takeLostPhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        if (bitmap != null) {
+            lostCapturedBitmap = bitmap
+            hasLostPhotoAttached = true
+        }
+    }
+
+    // Lanzador para galería de imágenes (Modo Extravío)
+    val pickLostGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                }
+                lostCapturedBitmap = bitmap
+                hasLostPhotoAttached = true
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error al procesar imagen de la galería", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val lostCameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            takeLostPhotoLauncher.launch(null)
+        } else {
+            Toast.makeText(context, "Se necesita permiso de cámara para capturar la foto", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun openLostCamera() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            takeLostPhotoLauncher.launch(null)
+        } else {
+            lostCameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun bitmapToBase64(bitmap: Bitmap): String {
+        return try {
+            val outputStream = ByteArrayOutputStream()
+            val maxDim = 800f
+            val scaled = if (bitmap.width > maxDim || bitmap.height > maxDim) {
+                val ratio = minOf(maxDim / bitmap.width, maxDim / bitmap.height)
+                Bitmap.createScaledBitmap(bitmap, (bitmap.width * ratio).toInt(), (bitmap.height * ratio).toInt(), true)
+            } else {
+                bitmap
+            }
+            scaled.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+            val bytes = outputStream.toByteArray()
+            "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+        } catch (_: Throwable) {
+            ""
+        }
+    }
 
     var titleHasError by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
@@ -365,7 +501,7 @@ fun ReportScreen(
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (hasPhotoAttached) {
@@ -374,38 +510,51 @@ fun ReportScreen(
                                         .size(86.dp)
                                         .clip(RoundedCornerShape(14.dp))
                                         .background(NavyCard)
-                                        .padding(6.dp)
+                                        .border(1.dp, CardStroke, RoundedCornerShape(14.dp))
                                 ) {
+                                    if (capturedBitmap != null) {
+                                        Image(
+                                            bitmap = capturedBitmap!!.asImageBitmap(),
+                                            contentDescription = "Foto capturada",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = GreenSuccess,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                    }
+
                                     IconButton(
-                                        onClick = { hasPhotoAttached = false },
+                                        onClick = {
+                                            hasPhotoAttached = false
+                                            capturedBitmap = null
+                                        },
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .size(20.dp)
-                                    ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = UniautonomaOrange)
-                                    }
-                                    Row(
-                                        modifier = Modifier.align(Alignment.BottomStart),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .size(24.dp)
+                                            .padding(2.dp)
+                                            .background(SurfaceWhite.copy(alpha = 0.85f), CircleShape)
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            tint = GreenSuccess,
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Text(
-                                            text = "Lista",
-                                            fontFamily = MuseoSansRounded,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = SurfaceWhite
+                                            Icons.Default.Close,
+                                            contentDescription = "Eliminar",
+                                            tint = UniautonomaOrange,
+                                            modifier = Modifier.size(14.dp)
                                         )
                                     }
                                 }
                             }
 
+                            // Botón 1: Cámara en vivo
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
@@ -413,26 +562,53 @@ fun ReportScreen(
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(BlueLight)
                                     .border(1.5.dp, UniautonomaBlue, RoundedCornerShape(14.dp))
-                                    .clickable {
-                                        hasPhotoAttached = true
-                                    }
-                                    .padding(12.dp),
+                                    .clickable { openFoundCamera() }
+                                    .padding(8.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.AddAPhoto,
-                                    contentDescription = null,
+                                    contentDescription = "Cámara",
                                     tint = UniautonomaBlue,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (hasPhotoAttached) "Tomar / Cambiar Foto" else "Tomar Foto Rápida",
+                                    text = if (hasPhotoAttached) "Repetir Foto" else "Tomar Foto",
                                     fontFamily = MuseoSansRounded,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = UniautonomaBlue
+                                )
+                            }
+
+                            // Botón 2: Galería del celular
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(86.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(UniautonomaBgLight)
+                                    .border(1.dp, DividerStroke, RoundedCornerShape(14.dp))
+                                    .clickable { pickFoundGalleryLauncher.launch("image/*") }
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PhotoLibrary,
+                                    contentDescription = "Galería",
+                                    tint = UniautonomaTextSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Elegir Galería",
+                                    fontFamily = MuseoSansRounded,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = UniautonomaTextPrimary
                                 )
                             }
                         }
@@ -911,32 +1087,75 @@ fun ReportScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(if (hasLostPhotoAttached) GreenLight else BlueLight)
-                                .border(1.dp, if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue, RoundedCornerShape(14.dp))
-                                .clickable {
-                                    hasLostPhotoAttached = !hasLostPhotoAttached
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (hasLostPhotoAttached) Icons.Default.Check else Icons.Default.AddAPhoto,
-                                contentDescription = null,
-                                tint = if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (hasLostPhotoAttached) "Foto de referencia adjuntada" else "Adjuntar foto de referencia (Opcional)",
-                                fontFamily = MuseoSansRounded,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (hasLostPhotoAttached) GreenSuccess else UniautonomaBlue
-                            )
+                            if (hasLostPhotoAttached) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, CardStroke, RoundedCornerShape(10.dp))
+                                ) {
+                                    if (lostCapturedBitmap != null) {
+                                        Image(
+                                            bitmap = lostCapturedBitmap!!.asImageBitmap(),
+                                            contentDescription = "Foto referencia",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = GreenSuccess,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            hasLostPhotoAttached = false
+                                            lostCapturedBitmap = null
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(20.dp)
+                                            .background(SurfaceWhite.copy(alpha = 0.85f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Eliminar", tint = UniautonomaOrange, modifier = Modifier.size(12.dp))
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = { openLostCamera() },
+                                modifier = Modifier.weight(1f).height(44.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = BlueLight, contentColor = UniautonomaBlue),
+                                border = BorderStroke(1.dp, UniautonomaBlue)
+                            ) {
+                                Icon(Icons.Default.AddAPhoto, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(if (hasLostPhotoAttached) "Repetir Foto" else "Tomar Foto", fontFamily = MuseoSansRounded, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            Button(
+                                onClick = { pickLostGalleryLauncher.launch("image/*") },
+                                modifier = Modifier.weight(1f).height(44.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = UniautonomaBgLight, contentColor = UniautonomaTextPrimary),
+                                border = BorderStroke(1.dp, DividerStroke)
+                            ) {
+                                Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp), tint = UniautonomaTextSecondary)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Galería", fontFamily = MuseoSansRounded, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -1006,7 +1225,9 @@ fun ReportScreen(
                                             .filter { it.isNotEmpty() }
                                             .joinToString(" ")
                                             .takeIf { it.isNotEmpty() },
-                                        photoUrl = if (hasPhotoAttached) "https://images.unsplash.com/photo-1587145820266-a5951ee6f620" else "https://images.unsplash.com/photo-1584438784894-089d6a62b8fa"
+                                        photoUrl = if (hasPhotoAttached && capturedBitmap != null) {
+                                            bitmapToBase64(capturedBitmap!!)
+                                        } else ""
                                     )
                                 )
                             } else {
@@ -1020,7 +1241,9 @@ fun ReportScreen(
                                         brandAndColor = lostBrandColor.trim().takeIf { it.isNotEmpty() },
                                         campusZone = selectedLostZone,
                                         locationReference = lostLocationRef.trim().takeIf { it.isNotEmpty() },
-                                        photoUrl = null
+                                        photoUrl = if (hasLostPhotoAttached && lostCapturedBitmap != null) {
+                                            bitmapToBase64(lostCapturedBitmap!!)
+                                        } else null
                                     )
                                 )
                             }
